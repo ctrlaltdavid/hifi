@@ -132,6 +132,10 @@ class MyAvatar : public Avatar {
     Q_PROPERTY(bool characterControllerEnabled READ getCharacterControllerEnabled WRITE setCharacterControllerEnabled)
     Q_PROPERTY(bool useAdvancedMovementControls READ useAdvancedMovementControls WRITE setUseAdvancedMovementControls)
 
+    Q_PROPERTY(bool rollControlEnabled READ getRollControlEnabled WRITE setRollControlEnabled)
+    Q_PROPERTY(float rollControlDeadZone READ getRollControlDeadZone WRITE setRollControlDeadZone)
+    Q_PROPERTY(float rollControlSpeed READ getRollControlSpeed WRITE setRollControlSpeed)
+
 public:
     enum DriveKeys {
         TRANSLATE_X = 0,
@@ -330,6 +334,13 @@ public:
     Q_INVOKABLE void setSnapTurn(bool on) { _useSnapTurn = on; }
     Q_INVOKABLE bool getClearOverlayWhenMoving() const { return _clearOverlayWhenMoving; }
     Q_INVOKABLE void setClearOverlayWhenMoving(bool on) { _clearOverlayWhenMoving = on; }
+
+    void setRollControlEnabled(bool value) { _rollControlEnabled = value; }
+    bool getRollControlEnabled() const { return _rollControlEnabled; }
+    void setRollControlDeadZone(float value) { _rollControlDeadZone = value; }
+    float getRollControlDeadZone() const { return _rollControlDeadZone; }
+    void setRollControlSpeed(float value) { _rollControlSpeed = value; }
+    float getRollControlSpeed() const { return _rollControlSpeed; }
 
     Q_INVOKABLE void setHMDLeanRecenterEnabled(bool value) { _hmdLeanRecenterEnabled = value; }
     Q_INVOKABLE bool getHMDLeanRecenterEnabled() const { return _hmdLeanRecenterEnabled; }
@@ -672,6 +683,12 @@ private:
     QUrl _fstAnimGraphOverrideUrl;
     bool _useSnapTurn { true };
     bool _clearOverlayWhenMoving { true };
+
+    const float ROLL_CONTROL_DEAD_ZONE_DEFAULT = 8.0f; // deg
+    const float ROLL_CONTROL_SPEED_DEFAULT = 1.0f; // deg/sec/deg
+    bool _rollControlEnabled { true };
+    float _rollControlDeadZone { ROLL_CONTROL_DEAD_ZONE_DEFAULT };
+    float _rollControlSpeed { ROLL_CONTROL_SPEED_DEFAULT };
 
     // working copies -- see AvatarData for thread-safe _sensorToWorldMatrixCache, used for outward facing access
     glm::mat4 _sensorToWorldMatrix { glm::mat4() };
