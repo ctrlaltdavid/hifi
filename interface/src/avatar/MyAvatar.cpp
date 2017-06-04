@@ -1877,14 +1877,22 @@ void MyAvatar::updateOrientation(float deltaTime) {
         _lastPitch = pitch;
 
         // Turn with head roll.
-        float forwards = getDriveKey(TRANSLATE_Z);
-        if (abs(forwards) > 0.0f) {
-            float direction = copysignf(1.0f, forwards);
+        if (speed >= MIN_CONTROL_SPEED) {
+            // Feather turn when stopping moving.
+            float speedFactor;
+            if (getDriveKey(TRANSLATE_Z) != 0.0f) {
+                _lastDrivenSpeed = speed;
+                speedFactor = 1.0;
+            } else {
+                speedFactor = glm::min(speed / _lastDrivenSpeed, 1.0f);
+            }
+
+            float direction = glm::dot(getVelocity(), getRotation() * Vectors::UNIT_NEG_Z) > 0.0f ? 1.0f : -1.0f;
             float rollAngle = glm::degrees(safeEulerAngles(getHMDSensorOrientation()).z);
             float rollSign = rollAngle > 0.0f ? 1.0f : -1.0f;
             float absRollValue = fabsf(rollAngle);
             float yawChange = absRollValue > _rollControlDeadZone ? rollSign * (absRollValue - _rollControlDeadZone) : 0.0f;
-            totalBodyYaw += direction * yawChange * deltaTime * _rollControlSpeed;
+            totalBodyYaw += speedFactor * direction * yawChange * deltaTime * _rollControlSpeed;
         }
  
         auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), avatarUp);

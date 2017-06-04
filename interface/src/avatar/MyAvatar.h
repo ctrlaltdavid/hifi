@@ -692,6 +692,7 @@ private:
     glm::quat _rollControlOrientation { glm::quat() };
     float _lastSpeed { 0.0f };
     float _lastPitch { 0.0f };
+    float _lastDrivenSpeed { 0.0f };
 
     // working copies -- see AvatarData for thread-safe _sensorToWorldMatrixCache, used for outward facing access
     glm::mat4 _sensorToWorldMatrix { glm::mat4() };
