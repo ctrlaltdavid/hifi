@@ -8,14 +8,14 @@
 // See the accompanying file LICENSE or http://www.apache.org/licenses/LICENSE-2.0.html
 //
 
-var rollControlEnabled = true;
-var rollControlDeadZone = 8.0;  // deg
-var rollControlSpeed = 1.0;  // deg/sec/deg
+var hmdRollControlEnabled = true;
+var hmdRollControlDeadZone = 8.0;  // deg
+var hmdRollControlSpeed = 1.0;  // deg/sec/deg
 
-print("HMD roll control: " + rollControlEnabled + ", " + rollControlDeadZone + ", " + rollControlSpeed);
+print("HMD roll control: " + hmdRollControlEnabled + ", " + hmdRollControlDeadZone + ", " + hmdRollControlSpeed);
 
-MyAvatar.rollControlEnabled = rollControlEnabled;
-MyAvatar.rollControlDeadZone = rollControlDeadZone;
-MyAvatar.rollControlSpeed = rollControlSpeed;
+MyAvatar.hmdRollControlEnabled = hmdRollControlEnabled;
+MyAvatar.hmdRollControlDeadZone = hmdRollControlDeadZone;
+MyAvatar.hmdRollControlSpeed = hmdRollControlSpeed;
 
 Script.stop();

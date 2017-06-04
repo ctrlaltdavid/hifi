@@ -132,9 +132,9 @@ class MyAvatar : public Avatar {
     Q_PROPERTY(bool characterControllerEnabled READ getCharacterControllerEnabled WRITE setCharacterControllerEnabled)
     Q_PROPERTY(bool useAdvancedMovementControls READ useAdvancedMovementControls WRITE setUseAdvancedMovementControls)
 
-    Q_PROPERTY(bool rollControlEnabled READ getRollControlEnabled WRITE setRollControlEnabled)
-    Q_PROPERTY(float rollControlDeadZone READ getRollControlDeadZone WRITE setRollControlDeadZone)
-    Q_PROPERTY(float rollControlSpeed READ getRollControlSpeed WRITE setRollControlSpeed)
+    Q_PROPERTY(bool hmdRollControlEnabled READ getHMDRollControlEnabled WRITE setHMDRollControlEnabled)
+    Q_PROPERTY(float hmdRollControlDeadZone READ getHMDRollControlDeadZone WRITE setHMDRollControlDeadZone)
+    Q_PROPERTY(float hmdRollControlSpeed READ getHMDRollControlSpeed WRITE setHMDRollControlSpeed)
 
 public:
     enum DriveKeys {
@@ -335,12 +335,12 @@ public:
     Q_INVOKABLE bool getClearOverlayWhenMoving() const { return _clearOverlayWhenMoving; }
     Q_INVOKABLE void setClearOverlayWhenMoving(bool on) { _clearOverlayWhenMoving = on; }
 
-    void setRollControlEnabled(bool value) { _rollControlEnabled = value; }
-    bool getRollControlEnabled() const { return _rollControlEnabled; }
-    void setRollControlDeadZone(float value) { _rollControlDeadZone = value; }
-    float getRollControlDeadZone() const { return _rollControlDeadZone; }
-    void setRollControlSpeed(float value) { _rollControlSpeed = value; }
-    float getRollControlSpeed() const { return _rollControlSpeed; }
+    void setHMDRollControlEnabled(bool value) { _hmdRollControlEnabled = value; }
+    bool getHMDRollControlEnabled() const { return _hmdRollControlEnabled; }
+    void setHMDRollControlDeadZone(float value) { _hmdRollControlDeadZone = value; }
+    float getHMDRollControlDeadZone() const { return _hmdRollControlDeadZone; }
+    void setHMDRollControlSpeed(float value) { _hmdRollControlSpeed = value; }
+    float getHMDRollControlSpeed() const { return _hmdRollControlSpeed; }
 
     Q_INVOKABLE void setHMDLeanRecenterEnabled(bool value) { _hmdLeanRecenterEnabled = value; }
     Q_INVOKABLE bool getHMDLeanRecenterEnabled() const { return _hmdLeanRecenterEnabled; }
@@ -686,10 +686,10 @@ private:
 
     const float ROLL_CONTROL_DEAD_ZONE_DEFAULT = 8.0f; // deg
     const float ROLL_CONTROL_SPEED_DEFAULT = 1.0f; // deg/sec/deg
-    bool _rollControlEnabled { true };
-    float _rollControlDeadZone { ROLL_CONTROL_DEAD_ZONE_DEFAULT };
-    float _rollControlSpeed { ROLL_CONTROL_SPEED_DEFAULT };
-    glm::quat _rollControlOrientation { glm::quat() };
+    bool _hmdRollControlEnabled { true };
+    float _hmdRollControlDeadZone { ROLL_CONTROL_DEAD_ZONE_DEFAULT };
+    float _hmdRollControlSpeed { ROLL_CONTROL_SPEED_DEFAULT };
+    glm::quat _hmdRollControlOrientation { glm::quat() };
     float _lastSpeed { 0.0f };
     float _lastPitch { 0.0f };
     float _lastDrivenSpeed { 0.0f };

@@ -1479,9 +1479,8 @@ void MyAvatar::updateMotors() {
     glm::quat motorRotation;
     if (_motionBehaviors & AVATAR_MOTION_ACTION_MOTOR_ENABLED) {
         glm::quat actionOrientation;
-        if (qApp->isHMDMode() && _rollControlEnabled) {
-            // Use separate
-            actionOrientation = _rollControlOrientation;
+        if (qApp->isHMDMode() && _hmdRollControlEnabled) {
+            actionOrientation = _hmdRollControlOrientation;
         } else {
             actionOrientation = getMyHead()->getCameraOrientation();
         }
@@ -1852,9 +1851,9 @@ void MyAvatar::updateOrientation(float deltaTime) {
         snapTurn = true;
     }
 
-    if (qApp->isHMDMode() && _rollControlEnabled) {
+    if (qApp->isHMDMode() && _hmdRollControlEnabled) {
         // Use head/HMD roll to turn while walking or flying.
-        // Control using _rollControlOrientation rather than getOrientation() so that view is not affected by updates to body
+        // Control using _hmdRollControlOrientation rather than getOrientation() so that view is not affected by updates to body
         // orientation such as caused when you look far left or right.
         auto avatarUp = getOrientation() * IDENTITY_UP;
 
@@ -1864,7 +1863,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
         if (speed >= MIN_CONTROL_SPEED && _lastSpeed < MIN_CONTROL_SPEED) {
             glm::quat liftRotation;
             swingTwistDecomposition(getMyHead()->getCameraOrientation(), avatarUp, liftRotation,
-                _rollControlOrientation);
+                _hmdRollControlOrientation);
             _lastPitch = 0.0f;
         }
         _lastSpeed = speed;
@@ -1873,7 +1872,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
         auto cameraForward = getMyHead()->getCameraOrientation() * IDENTITY_FORWARD;
         auto pitch = asin(glm::dot(avatarUp, cameraForward));
         auto deltaPitch = glm::angleAxis(pitch - _lastPitch, getOrientation() * IDENTITY_RIGHT);
-        _rollControlOrientation = deltaPitch * _rollControlOrientation;
+        _hmdRollControlOrientation = deltaPitch * _hmdRollControlOrientation;
         _lastPitch = pitch;
 
         // Turn with head roll.
@@ -1891,12 +1890,12 @@ void MyAvatar::updateOrientation(float deltaTime) {
             float rollAngle = glm::degrees(safeEulerAngles(getHMDSensorOrientation()).z);
             float rollSign = rollAngle > 0.0f ? 1.0f : -1.0f;
             float absRollValue = fabsf(rollAngle);
-            float yawChange = absRollValue > _rollControlDeadZone ? rollSign * (absRollValue - _rollControlDeadZone) : 0.0f;
-            totalBodyYaw += speedFactor * direction * yawChange * deltaTime * _rollControlSpeed;
+            float yawChange = absRollValue > _hmdRollControlDeadZone ? rollSign * (absRollValue - _hmdRollControlDeadZone) : 0.0f;
+            totalBodyYaw += speedFactor * direction * yawChange * deltaTime * _hmdRollControlSpeed;
         }
  
         auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), avatarUp);
-        _rollControlOrientation = deltaYaw * _rollControlOrientation;
+        _hmdRollControlOrientation = deltaYaw * _hmdRollControlOrientation;
 
     } else if (getCharacterController()->getState() == CharacterController::State::Hover) {
         // Use head/HMD orientation to turn while flying.
