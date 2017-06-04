@@ -1857,7 +1857,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
         // Control using _rollControlOrientation rather than getOrientation() so that view is not affected by updates to body
         // orientation such as caused when you look far left or right.
 
-        // Start moving in direction that your head is facing.
+        // Start moving in horizontal direction that your head is facing.
         const float MIN_CONTROL_SPEED = 0.01f;
         float speed = glm::length(getVelocity());
         if (speed >= MIN_CONTROL_SPEED && _lastSpeed < MIN_CONTROL_SPEED) {
@@ -1866,6 +1866,19 @@ void MyAvatar::updateOrientation(float deltaTime) {
                 _rollControlOrientation);
         }
         _lastSpeed = speed;
+
+        // Turn with head roll.
+        float forwards = getDriveKey(TRANSLATE_Z);
+        if (abs(forwards) > 0.0f) {
+            float direction = copysignf(1.0f, forwards);
+            float rollAngle = glm::degrees(safeEulerAngles(getHMDSensorOrientation()).z);
+            float rollSign = rollAngle > 0.0f ? 1.0f : -1.0f;
+            float absRollValue = fabsf(rollAngle);
+            float yawChange = absRollValue > _rollControlDeadZone ? rollSign * (absRollValue - _rollControlDeadZone) : 0.0f;
+            totalBodyYaw += direction * yawChange * deltaTime * _rollControlSpeed;
+        }
+
+        // Climb/fall with head pitch.
 
         auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), getOrientation() * IDENTITY_UP);
         _rollControlOrientation = deltaYaw * _rollControlOrientation;
