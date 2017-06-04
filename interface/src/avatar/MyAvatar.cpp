@@ -1856,16 +1856,25 @@ void MyAvatar::updateOrientation(float deltaTime) {
         // Use head/HMD roll to turn while walking or flying.
         // Control using _rollControlOrientation rather than getOrientation() so that view is not affected by updates to body
         // orientation such as caused when you look far left or right.
+        auto avatarUp = getOrientation() * IDENTITY_UP;
 
         // Start moving in horizontal direction that your head is facing.
         const float MIN_CONTROL_SPEED = 0.01f;
         float speed = glm::length(getVelocity());
         if (speed >= MIN_CONTROL_SPEED && _lastSpeed < MIN_CONTROL_SPEED) {
             glm::quat liftRotation;
-            swingTwistDecomposition(getMyHead()->getCameraOrientation(), getOrientation() * IDENTITY_UP, liftRotation,
+            swingTwistDecomposition(getMyHead()->getCameraOrientation(), avatarUp, liftRotation,
                 _rollControlOrientation);
+            _lastPitch = 0.0f;
         }
         _lastSpeed = speed;
+
+        // Climb/fall with head pitch.
+        auto cameraForward = getMyHead()->getCameraOrientation() * IDENTITY_FORWARD;
+        auto pitch = asin(glm::dot(avatarUp, cameraForward));
+        auto deltaPitch = glm::angleAxis(pitch - _lastPitch, getOrientation() * IDENTITY_RIGHT);
+        _rollControlOrientation = deltaPitch * _rollControlOrientation;
+        _lastPitch = pitch;
 
         // Turn with head roll.
         float forwards = getDriveKey(TRANSLATE_Z);
@@ -1877,10 +1886,8 @@ void MyAvatar::updateOrientation(float deltaTime) {
             float yawChange = absRollValue > _rollControlDeadZone ? rollSign * (absRollValue - _rollControlDeadZone) : 0.0f;
             totalBodyYaw += direction * yawChange * deltaTime * _rollControlSpeed;
         }
-
-        // Climb/fall with head pitch.
-
-        auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), getOrientation() * IDENTITY_UP);
+ 
+        auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), avatarUp);
         _rollControlOrientation = deltaYaw * _rollControlOrientation;
 
     } else if (getCharacterController()->getState() == CharacterController::State::Hover) {
