@@ -1475,16 +1475,25 @@ controller::Pose MyAvatar::getRightArmControllerPoseInAvatarFrame() const {
 
 void MyAvatar::updateMotors() {
     _characterController.clearMotors();
+
     glm::quat motorRotation;
     if (_motionBehaviors & AVATAR_MOTION_ACTION_MOTOR_ENABLED) {
+        glm::quat actionOrientation;
+        if (qApp->isHMDMode() && _rollControlEnabled) {
+            // Use separate
+            actionOrientation = _rollControlOrientation;
+        } else {
+            actionOrientation = getMyHead()->getCameraOrientation();
+        }
+
         if (_characterController.getState() == CharacterController::State::Hover ||
                 _characterController.computeCollisionGroup() == BULLET_COLLISION_GROUP_COLLISIONLESS) {
-            motorRotation = getMyHead()->getCameraOrientation();
+            motorRotation = actionOrientation;
         } else {
             // non-hovering = walking: follow camera twist about vertical but not lift
             // so we decompose camera's rotation and store the twist part in motorRotation
             glm::quat liftRotation;
-            swingTwistDecomposition(getMyHead()->getCameraOrientation(), _worldUpDirection, liftRotation, motorRotation);
+            swingTwistDecomposition(actionOrientation, _worldUpDirection, liftRotation, motorRotation);
         }
         const float DEFAULT_MOTOR_TIMESCALE = 0.2f;
         const float INVALID_MOTOR_TIMESCALE = 1.0e6f;
@@ -1843,8 +1852,26 @@ void MyAvatar::updateOrientation(float deltaTime) {
         snapTurn = true;
     }
 
-    // use head/HMD orientation to turn while flying
-    if (getCharacterController()->getState() == CharacterController::State::Hover) {
+    if (qApp->isHMDMode() && _rollControlEnabled) {
+        // Use head/HMD roll to turn while walking or flying.
+        // Control using _rollControlOrientation rather than getOrientation() so that view is not affected by updates to body
+        // orientation such as caused when you look far left or right.
+
+        // Start moving in direction that your head is facing.
+        const float MIN_CONTROL_SPEED = 0.01f;
+        float speed = glm::length(getVelocity());
+        if (speed >= MIN_CONTROL_SPEED && _lastSpeed < MIN_CONTROL_SPEED) {
+            glm::quat liftRotation;
+            swingTwistDecomposition(getMyHead()->getCameraOrientation(), getOrientation() * IDENTITY_UP, liftRotation,
+                _rollControlOrientation);
+        }
+        _lastSpeed = speed;
+
+        auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), getOrientation() * IDENTITY_UP);
+        _rollControlOrientation = deltaYaw * _rollControlOrientation;
+
+    } else if (getCharacterController()->getState() == CharacterController::State::Hover) {
+        // Use head/HMD orientation to turn while flying.
 
         // This is the direction the user desires to fly in.
         glm::vec3 desiredFacing = getMyHead()->getCameraOrientation() * Vectors::UNIT_Z;

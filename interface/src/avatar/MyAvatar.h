@@ -689,6 +689,8 @@ private:
     bool _rollControlEnabled { true };
     float _rollControlDeadZone { ROLL_CONTROL_DEAD_ZONE_DEFAULT };
     float _rollControlSpeed { ROLL_CONTROL_SPEED_DEFAULT };
+    glm::quat _rollControlOrientation { glm::quat() };
+    float _lastSpeed { 0.0f };
 
     // working copies -- see AvatarData for thread-safe _sensorToWorldMatrixCache, used for outward facing access
     glm::mat4 _sensorToWorldMatrix { glm::mat4() };
