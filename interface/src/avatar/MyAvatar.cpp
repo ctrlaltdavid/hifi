@@ -1872,14 +1872,14 @@ void MyAvatar::updateOrientation(float deltaTime) {
         auto cameraForward = getMyHead()->getCameraOrientation() * IDENTITY_FORWARD;
         auto pitch = asin(glm::dot(avatarUp, cameraForward));
         auto deltaPitch = glm::angleAxis(pitch - _lastPitch, getOrientation() * IDENTITY_RIGHT);
-        _hmdRollControlOrientation = deltaPitch * _hmdRollControlOrientation;
+        _hmdRollControlOrientation = glm::normalize(deltaPitch * _hmdRollControlOrientation);
         _lastPitch = pitch;
 
         // Turn with head roll.
         if (speed >= MIN_CONTROL_SPEED) {
             // Feather turn when stopping moving.
             float speedFactor;
-            if (getDriveKey(TRANSLATE_Z) != 0.0f) {
+            if (getDriveKey(TRANSLATE_Z) != 0.0f && _lastDrivenSpeed != 0.0f) {
                 _lastDrivenSpeed = speed;
                 speedFactor = 1.0;
             } else {
