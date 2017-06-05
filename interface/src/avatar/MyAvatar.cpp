@@ -1887,10 +1887,12 @@ void MyAvatar::updateOrientation(float deltaTime) {
             }
 
             float direction = glm::dot(getVelocity(), getRotation() * Vectors::UNIT_NEG_Z) > 0.0f ? 1.0f : -1.0f;
-            float rollAngle = glm::degrees(safeEulerAngles(getHMDSensorOrientation()).z);
-            float rollSign = rollAngle > 0.0f ? 1.0f : -1.0f;
-            float absRollValue = fabsf(rollAngle);
-            float yawChange = absRollValue > _hmdRollControlDeadZone ? rollSign * (absRollValue - _hmdRollControlDeadZone) : 0.0f;
+            auto hmdSensorEulers = safeEulerAngles(_hmdSensorOrientation);
+            float rollAngle = fabsf(glm::degrees(hmdSensorEulers.z));
+            float dot = glm::dot(_hmdSensorOrientation * Vectors::UNIT_Y, 
+                glm::angleAxis(hmdSensorEulers.y, Vectors::UNIT_Y) * Vectors::UNIT_X);
+            float rollSign = dot < 0.0f ? 1.0f : -1.0f;
+            float yawChange = rollAngle > _hmdRollControlDeadZone ? rollSign * (rollAngle - _hmdRollControlDeadZone) : 0.0f;
             totalBodyYaw += speedFactor * direction * yawChange * deltaTime * _hmdRollControlSpeed;
         }
  
