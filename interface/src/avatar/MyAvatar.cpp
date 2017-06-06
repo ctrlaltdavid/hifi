@@ -1879,7 +1879,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
         if (speed >= MIN_CONTROL_SPEED) {
             // Feather turn when stopping moving.
             float speedFactor;
-            if (getDriveKey(TRANSLATE_Z) != 0.0f && _lastDrivenSpeed != 0.0f) {
+            if (getDriveKey(TRANSLATE_Z) != 0.0f || _lastDrivenSpeed == 0.0f) {
                 _lastDrivenSpeed = speed;
                 speedFactor = 1.0;
             } else {
