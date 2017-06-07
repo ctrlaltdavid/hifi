@@ -1872,7 +1872,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
         auto cameraForward = getMyHead()->getCameraOrientation() * IDENTITY_FORWARD;
         auto pitch = asin(glm::dot(avatarUp, cameraForward));
         auto deltaPitch = glm::angleAxis(pitch - _lastPitch, getOrientation() * IDENTITY_RIGHT);
-        _hmdRollControlOrientation = glm::normalize(deltaPitch * _hmdRollControlOrientation);
+        _hmdRollControlOrientation = deltaPitch * _hmdRollControlOrientation;
         _lastPitch = pitch;
 
         // Turn with head roll.
@@ -1897,7 +1897,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
         }
  
         auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), avatarUp);
-        _hmdRollControlOrientation = deltaYaw * _hmdRollControlOrientation;
+        _hmdRollControlOrientation = glm::normalize(deltaYaw * _hmdRollControlOrientation);
 
     } else if (getCharacterController()->getState() == CharacterController::State::Hover) {
         // Use head/HMD orientation to turn while flying.
