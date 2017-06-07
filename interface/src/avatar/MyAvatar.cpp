@@ -1869,7 +1869,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
             glm::vec3 avatarUp = getOrientation() * IDENTITY_UP;
             glm::vec3 rolledRight = getHeadOrientation() * IDENTITY_RIGHT;
             float rolledRightDotUp = glm::dot(rolledRight, avatarUp);
-            const float MIN_ROLL_DOT_THRESHOLD = 0.15f;
+            const float MIN_ROLL_DOT_THRESHOLD = 0.15f; // 0.15 corresponds to ~8.62 degrees
             if (fabsf(rolledRightDotUp) > MIN_ROLL_DOT_THRESHOLD) {
                 rolledRightDotUp -= (rolledRightDotUp > 0.0f) ? MIN_ROLL_DOT_THRESHOLD : - MIN_ROLL_DOT_THRESHOLD;
                 totalBodyYaw += rolledRightDotUp * deltaTime * _hmdRollControlSpeed;
