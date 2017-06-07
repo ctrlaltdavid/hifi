@@ -28,6 +28,8 @@
 #include "MyCharacterController.h"
 #include <ThreadSafeValueCache.h>
 
+#define USE_SIMPLE_ROLL_CONTROL
+
 class AvatarActionHold;
 class ModelItemID;
 class MyHead;
@@ -689,10 +691,13 @@ private:
     bool _hmdRollControlEnabled { true };
     float _hmdRollControlDeadZone { ROLL_CONTROL_DEAD_ZONE_DEFAULT };
     float _hmdRollControlSpeed { ROLL_CONTROL_SPEED_DEFAULT };
+#ifdef USE_SIMPLE_ROLL_CONTROL
+#else // USE_SIMPLE_ROLL_CONTROL
     glm::quat _hmdRollControlOrientation { glm::quat() };
     float _lastSpeed { 0.0f };
     float _lastPitch { 0.0f };
     float _lastDrivenSpeed { 0.0f };
+#endif // USE_SIMPLE_ROLL_CONTROL
 
     // working copies -- see AvatarData for thread-safe _sensorToWorldMatrixCache, used for outward facing access
     glm::mat4 _sensorToWorldMatrix { glm::mat4() };

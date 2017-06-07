@@ -1480,7 +1480,16 @@ void MyAvatar::updateMotors() {
     if (_motionBehaviors & AVATAR_MOTION_ACTION_MOTOR_ENABLED) {
         glm::quat actionOrientation;
         if (qApp->isHMDMode() && _hmdRollControlEnabled) {
+#ifdef USE_SIMPLE_ROLL_CONTROL
+            glm::quat avatarOrientation = getOrientation();
+            glm::vec3 avatarUp = avatarOrientation * IDENTITY_UP;
+            glm::vec3 headForward = getHeadOrientation() * IDENTITY_FORWARD;
+            float pitchAngle = asinf(glm::clamp(glm::dot(headForward, avatarUp), -1.0f, 1.0f));
+            glm::quat prePitch = glm::angleAxis(pitchAngle, IDENTITY_RIGHT);
+            actionOrientation = avatarOrientation * prePitch;
+#else // USE_SIMPLE_ROLL_CONTROL
             actionOrientation = _hmdRollControlOrientation;
+#endif // USE_SIMPLE_ROLL_CONTROL
         } else {
             actionOrientation = getMyHead()->getCameraOrientation();
         }
@@ -1852,6 +1861,16 @@ void MyAvatar::updateOrientation(float deltaTime) {
     }
 
     if (qApp->isHMDMode() && _hmdRollControlEnabled) {
+#ifdef USE_SIMPLE_ROLL_CONTROL
+        // Use head/HMD roll to turn while walking or flying.
+        glm::vec3 avatarUp = getOrientation() * IDENTITY_UP;
+        glm::vec3 rolledRight = getHeadOrientation() * IDENTITY_RIGHT;
+        float rolledRightDotUp = glm::dot(rolledRight, avatarUp);
+        const float MIN_ROLL_DOT_THRESHOLD = 0.1f; // ~5.72 degrees
+        if (fabsf(rolledRightDotUp) > MIN_ROLL_DOT_THRESHOLD) {
+            totalBodyYaw += rolledRightDotUp * deltaTime * _hmdRollControlSpeed;
+        }
+#else // USE_SIMPLE_ROLL_CONTROL
         // Use head/HMD roll to turn while walking or flying.
         // Control using _hmdRollControlOrientation rather than getOrientation() so that view is not affected by updates to body
         // orientation such as caused when you look far left or right.
@@ -1898,7 +1917,7 @@ void MyAvatar::updateOrientation(float deltaTime) {
  
         auto deltaYaw = glm::angleAxis(glm::radians(totalBodyYaw), avatarUp);
         _hmdRollControlOrientation = glm::normalize(deltaYaw * _hmdRollControlOrientation);
-
+#endif // USE_SIMPLE_ROLL_CONTROL
     } else if (getCharacterController()->getState() == CharacterController::State::Hover) {
         // Use head/HMD orientation to turn while flying.
 
