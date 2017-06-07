@@ -685,7 +685,7 @@ private:
     bool _clearOverlayWhenMoving { true };
 
     const float ROLL_CONTROL_DEAD_ZONE_DEFAULT = 8.0f; // deg
-    const float ROLL_CONTROL_SPEED_DEFAULT = 1.5f; // deg/sec/deg
+    const float ROLL_CONTROL_SPEED_DEFAULT = 2.5f; // deg/sec/deg
     bool _hmdRollControlEnabled { true };
     float _hmdRollControlDeadZone { ROLL_CONTROL_DEAD_ZONE_DEFAULT };
     float _hmdRollControlSpeed { ROLL_CONTROL_SPEED_DEFAULT };
