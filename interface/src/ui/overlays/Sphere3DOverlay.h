@@ -28,8 +28,14 @@ public:
 
     virtual Sphere3DOverlay* createClone() const override;
 
+    void setProperties(const QVariantMap& properties) override;
+    QVariant getProperty(const QString& property) override;
+
 protected:
     Transform evalRenderTransform() override;
+
+private:
+    bool _emissive { false };
 };
 
  

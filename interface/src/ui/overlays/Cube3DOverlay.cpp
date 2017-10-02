@@ -26,7 +26,8 @@ Cube3DOverlay::Cube3DOverlay() {
 }
 
 Cube3DOverlay::Cube3DOverlay(const Cube3DOverlay* cube3DOverlay) :
-    Volume3DOverlay(cube3DOverlay)
+    Volume3DOverlay(cube3DOverlay),
+    _emissive(cube3DOverlay->_emissive)
 {
     auto geometryCache = DependencyManager::get<GeometryCache>();
     for (size_t i = 0; i < _geometryIds.size(); ++i) {
@@ -113,7 +114,7 @@ const render::ShapeKey Cube3DOverlay::getShapeKey() {
     if (isTransparent()) {
         builder.withTranslucent();
     }
-    if (!getIsSolid() || shouldDrawHUDLayer()) {
+    if (!getIsSolid() || shouldDrawHUDLayer() || _emissive) {
         builder.withUnlit().withDepthBias();
     }
     return builder.build();
@@ -127,16 +128,24 @@ void Cube3DOverlay::setProperties(const QVariantMap& properties) {
     Volume3DOverlay::setProperties(properties);
 
     auto borderSize = properties["borderSize"];
-
     if (borderSize.isValid()) {
         float value = borderSize.toFloat();
         setBorderSize(value);
+    }
+
+    auto emissiveValue = properties["emissive"];
+    if (emissiveValue.isValid()) {
+        _emissive = emissiveValue.toBool();
     }
 }
 
 QVariant Cube3DOverlay::getProperty(const QString& property) {
     if (property == "borderSize") {
         return _borderSize;
+    }
+
+    if (property == "emissive") {
+        return _emissive;
     }
 
     return Volume3DOverlay::getProperty(property);

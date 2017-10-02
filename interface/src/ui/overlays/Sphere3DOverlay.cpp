@@ -21,8 +21,9 @@ QString const Sphere3DOverlay::TYPE = "sphere";
 // However, the geometry cache renders a UNIT sphere, so we need to scale down.
 static const float SPHERE_OVERLAY_SCALE = 0.5f;
 
-Sphere3DOverlay::Sphere3DOverlay(const Sphere3DOverlay* Sphere3DOverlay) :
-    Volume3DOverlay(Sphere3DOverlay)
+Sphere3DOverlay::Sphere3DOverlay(const Sphere3DOverlay* sphere3DOverlay) :
+    Volume3DOverlay(sphere3DOverlay),
+    _emissive(sphere3DOverlay->_emissive)
 {
 }
 
@@ -60,7 +61,7 @@ const render::ShapeKey Sphere3DOverlay::getShapeKey() {
     if (isTransparent()) {
         builder.withTranslucent();
     }
-    if (!getIsSolid() || shouldDrawHUDLayer()) {
+    if (!getIsSolid() || shouldDrawHUDLayer() || _emissive) {
         builder.withUnlit().withDepthBias();
     }
     return builder.build();
@@ -68,6 +69,23 @@ const render::ShapeKey Sphere3DOverlay::getShapeKey() {
 
 Sphere3DOverlay* Sphere3DOverlay::createClone() const {
     return new Sphere3DOverlay(this);
+}
+
+void Sphere3DOverlay::setProperties(const QVariantMap& properties) {
+    Volume3DOverlay::setProperties(properties);
+
+    auto emissiveValue = properties["emissive"];
+    if (emissiveValue.isValid()) {
+        _emissive = emissiveValue.toBool();
+    }
+}
+
+QVariant Sphere3DOverlay::getProperty(const QString& property) {
+    if (property == "emissive") {
+        return _emissive;
+    }
+
+    return Volume3DOverlay::getProperty(property);
 }
 
 Transform Sphere3DOverlay::evalRenderTransform() {

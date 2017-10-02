@@ -42,6 +42,7 @@ protected:
 
 private:
     float _borderSize;
+    bool _emissive { false };
     GeometryCache::Shape _shape { GeometryCache::Hexagon };
 };
 

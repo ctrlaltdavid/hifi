@@ -18,8 +18,9 @@
 
 QString const Shape3DOverlay::TYPE = "shape";
 
-Shape3DOverlay::Shape3DOverlay(const Shape3DOverlay* Shape3DOverlay) :
-    Volume3DOverlay(Shape3DOverlay)
+Shape3DOverlay::Shape3DOverlay(const Shape3DOverlay* shape3DOverlay) :
+    Volume3DOverlay(shape3DOverlay),
+    _emissive(shape3DOverlay->_emissive)
 {
 }
 
@@ -55,7 +56,7 @@ const render::ShapeKey Shape3DOverlay::getShapeKey() {
     if (isTransparent()) {
         builder.withTranslucent();
     }
-    if (!getIsSolid() || shouldDrawHUDLayer()) {
+    if (!getIsSolid() || shouldDrawHUDLayer() || _emissive) {
         builder.withUnlit().withDepthBias();
     }
     return builder.build();
@@ -100,10 +101,14 @@ void Shape3DOverlay::setProperties(const QVariantMap& properties) {
     }
 
     auto borderSize = properties["borderSize"];
-
     if (borderSize.isValid()) {
         float value = borderSize.toFloat();
         setBorderSize(value);
+    }
+
+    auto emissiveValue = properties["emissive"];
+    if (emissiveValue.isValid()) {
+        _emissive = emissiveValue.toBool();
     }
 }
 
@@ -114,6 +119,10 @@ QVariant Shape3DOverlay::getProperty(const QString& property) {
 
     if (property == "shape") {
         return shapeStrings[_shape];
+    }
+
+    if (property == "emissive") {
+        return _emissive;
     }
 
     return Volume3DOverlay::getProperty(property);

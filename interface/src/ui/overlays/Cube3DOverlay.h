@@ -42,6 +42,7 @@ protected:
 private:
     float _borderSize;
     // edges on a cube
+    bool _emissive { false };
     std::array<int, 12> _geometryIds;
 };
 
