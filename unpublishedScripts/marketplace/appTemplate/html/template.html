@@ -33,9 +33,32 @@ See the accompanying file LICENSE or http://www.apache.org/licenses/LICENSE-2.0.
         <p id="label">TEMPLATE</p>
     </div>
 
-    <p class="blurb">Marketplace application template.</p>
+    <p id="blurb">Marketplace application template.</p>
 
-    <input id="toggle-active" type="button" class="off" value="TURN ON TEMPLATE" />
+    <input id="toggle-active" type="button" class="blue" value="TURN ON TEMPLATE" />
+
+    <p>The following settings mirror those in Settings &gt; Avatar.</p>
+
+    <div class="text">
+        <label for="display-name">Display name:</label>
+        <input id="display-name" type="text" />
+    </div>
+
+    <div class="checkbox">
+        <input id="snap-turn" type="checkbox" />
+        <label for="snap-turn">Snap turn when in HMD.</label>
+    </div>
+    <div class="checkbox">
+        <input id="clear-overlays" type="checkbox" />
+        <label for="clear-overlays">Clear overlays when moving.</label>
+    </div>
+
+    <div class="number">
+        <label for="avatar-scale">Avatar scale:</label>
+        <input id="avatar-scale" type="number" />
+    </div>
+
+    <input id="close-dialog" type="button" class="white" value="CLOSE" />
 
     <script src="template.js"></script>
 </body>
