@@ -22,14 +22,14 @@ See the accompanying file LICENSE or http://www.apache.org/licenses/LICENSE-2.0.
     <hr />
 
     <div id="icon" class="off">
-        <!-- HiFi CDN doesn't handle SVG files properly so have to embed SVG. -->
-        <svg id="logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" 
-            baseProfile="full" width="50" height="50" viewBox="0 0 50.00 50.00" enable-background="new 0 0 50.00 50.00" 
+        <!-- HiFi CDN doesn't handle SVG files properly so need to embed. -->
+        <svg id="logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
+            baseProfile="full" width="50" height="50" viewBox="0 0 50.00 50.00" enable-background="new 0 0 50.00 50.00"
             xml:space="preserve">
-            <rect x="8.99999" y="19" fill="none" stroke-width="3" stroke-linejoin="round" stroke="#FFFFFF" stroke-opacity="1" 
-                 width="22" height="22" />
-            <ellipse fill="none" stroke-width="3" stroke-linejoin="round" stroke="#FFFFFF" stroke-opacity="1" cx="31" cy="19" 
-                 rx="11" ry="11" />
+        <rect x="8.99999" y="19" fill="none" stroke-width="3" stroke-linejoin="round" stroke="#FFFFFF" stroke-opacity="1"
+            width="22" height="22" />
+        <ellipse fill="none" stroke-width="3" stroke-linejoin="round" stroke="#FFFFFF" stroke-opacity="1" cx="31" cy="19"
+            rx="11" ry="11" />
         </svg>
         <p id="label">TEMPLATE</p>
     </div>
@@ -38,29 +38,29 @@ See the accompanying file LICENSE or http://www.apache.org/licenses/LICENSE-2.0.
 
     <input id="toggle-active" type="button" class="blue" value="TURN ON TEMPLATE" />
 
-    <p>The following settings mirror those in Settings &gt; Avatar.</p>
+    <p>The following settings mirror the values in the Settings menus.</p>
 
     <div class="text">
         <label for="display-name">Display name:</label>
-        <input id="display-name" type="text" />
+        <input id="display-name" type="text" disabled />
     </div>
 
     <div class="checkbox">
-        <input id="snap-turn" type="checkbox" />
+        <input id="snap-turn" type="checkbox" disabled />
         <label for="snap-turn">Snap turn when in HMD.</label>
     </div>
     <div class="checkbox">
-        <input id="clear-overlays" type="checkbox" />
+        <input id="clear-overlays" type="checkbox" disabled />
         <label for="clear-overlays">Clear overlays when moving.</label>
     </div>
 
     <div class="number">
         <label for="avatar-scale">Avatar scale:</label>
-        <input id="avatar-scale" type="number" />
+        <input id="avatar-scale" type="number" step="0.1" disabled />
     </div>
 
     <input id="close-dialog" type="button" class="white" value="CLOSE" />
 
-    <script src="template.js"></script>
+    <script type="text/javascript" src="template.js"></script>
 </body>
 </html>

@@ -23,22 +23,113 @@
         isTabletUIOpen = false,
 
         // EventBridge messages.
+        EVENT_BRIDGE_OPEN_MESSAGE = "eventBridgeOpen",
         SET_ACTIVE_MESSAGE = "setActive",
+        SET_DISPLAY_NAME_MESSAGE = "setDisplayName",
+        SET_SNAP_TURN_MESSAGE = "setSnapTurn",
+        SET_CLEAR_OVERLAYS_MESSAGE = "clearOverlays",
+        SET_AVATAR_SCALE_MESSAGE = "setAvatarScale",
+        CLOSE_DIALOG_MESSAGE = "closeDialog",
 
-        isAppActive = false;
+        isAppActive = false,
 
-    function startApp() {
-        // Start application activity.
-        console.log("startApp()");
+        // Current UI values.
+        currentDisplayName,
+        currentSnapTurn,
+        currentClearOverlays,
+        currentAvatarScale,
+
+        // Timer to monitor changes in UI values.
+        uiUpdateTimer = null,
+        UI_UPDATE_INTERVAL = 1000;
+
+    function updateDisplayName(displayName) {
+        currentDisplayName = displayName;
+        tablet.emitScriptEvent(JSON.stringify({
+            command: SET_DISPLAY_NAME_MESSAGE,
+            value: currentDisplayName
+        }));
     }
 
-    function stopApp() {
-        // Stop application activity.
-        console.log("stopApp()");
+    function updateSnapTurn(snapTurn) {
+        currentSnapTurn = snapTurn;
+        tablet.emitScriptEvent(JSON.stringify({
+            command: SET_SNAP_TURN_MESSAGE,
+            value: currentSnapTurn
+        }));
+    }
+
+    function updateClearOverlays(clearOverlays) {
+        currentClearOverlays = clearOverlays;
+        tablet.emitScriptEvent(JSON.stringify({
+            command: SET_CLEAR_OVERLAYS_MESSAGE,
+            value: currentClearOverlays
+        }));
+    }
+
+    function updateAvatarScale(avatarSccale) {
+        currentAvatarScale = avatarSccale;
+        tablet.emitScriptEvent(JSON.stringify({
+            command: SET_AVATAR_SCALE_MESSAGE,
+            value: currentAvatarScale
+        }));
+    }
+
+    function doUIUpdate() {
+        // Update UI if values changed externally.
+        var displayName = MyAvatar.displayName,
+            snapTurn = MyAvatar.getSnapTurn(),
+            clearOverlays = MyAvatar.getClearOverlayWhenMoving(),
+            avatarScale = MyAvatar.getAvatarScale();
+
+        if (displayName !== currentDisplayName) {
+            updateDisplayName(displayName);
+        }
+        if (snapTurn !== currentSnapTurn) {
+            updateSnapTurn(snapTurn);
+        }
+        if (clearOverlays !== currentClearOverlays) {
+            updateClearOverlays(clearOverlays);
+        }
+        if (avatarScale !== currentAvatarScale) {
+            updateAvatarScale(avatarScale);
+        }
+
+        uiUpdateTimer = Script.setTimeout(doUIUpdate, UI_UPDATE_INTERVAL);
+    }
+
+    function setUIUpdating(active) {
+        if (!active && uiUpdateTimer) {
+            Script.clearTimeout(uiUpdateTimer);
+            uiUpdateTimer = null;
+        }
+        if (active) {
+            doUIUpdate();
+        }
+    }
+
+    function clearValues() {
+        currentDisplayName = undefined;
+        currentSnapTurn = undefined;
+        currentClearOverlays = undefined;
+        currentAvatarScale = undefined;
+    }
+
+    function setAppActive(active) {
+        // Start/stop application activity.
+        if (active) {
+            console.log("Start app");
+            // TODO: Start app activity.
+        } else {
+            console.log("Stop app");
+            // TODO: Stop app activity.
+        }
+
+        isAppActive = active;
     }
 
     function onTabletWebEventReceived(data) {
-        // EventBridge message from application UI.
+        // EventBridge message from HTML script.
         var message;
 
         try {
@@ -48,17 +139,31 @@
         }
 
         switch (message.command) {
+            case EVENT_BRIDGE_OPEN_MESSAGE:
+                clearValues();
+                doUIUpdate();
+                break;
             case SET_ACTIVE_MESSAGE:
                 if (isAppActive !== message.value) {
-                    isAppActive = message.value;
-                    tabletButton.editProperties({ isActive: isAppActive });
-                    if (isAppActive) {
-                        startApp();
-                    } else {
-                        stopApp();
-                    }
+                    tabletButton.editProperties({ isActive: message.value });
+                    setAppActive(message.value);
                 }
                 tablet.gotoHomeScreen(); // Automatically close app.
+                break;
+            case SET_DISPLAY_NAME_MESSAGE:
+                MyAvatar.displayName = message.value;
+                break;
+            case SET_SNAP_TURN_MESSAGE:
+                MyAvatar.setSnapTurn(message.value);
+                break;
+            case SET_CLEAR_OVERLAYS_MESSAGE:
+                MyAvatar.setClearOverlayWhenMoving(message.value);
+                break;
+            case SET_AVATAR_SCALE_MESSAGE:
+                MyAvatar.setAvatarScale(message.value);
+                break;
+            case CLOSE_DIALOG_MESSAGE:
+                tablet.gotoHomeScreen();
                 break;
         }
     }
@@ -86,6 +191,7 @@
         if (isTabletUIOpen) {
             tablet.webEventReceived.connect(onTabletWebEventReceived);
         } else {
+            setUIUpdating(false);
             tablet.webEventReceived.disconnect(onTabletWebEventReceived);
         }
     }
@@ -115,11 +221,12 @@
     }
 
     function tearDown() {
-        if (!tablet) {
-            return;
+        if (isAppActive) {
+            setAppActive(false);
         }
 
         if (isTabletUIOpen) {
+            setUIUpdating(false);
             tablet.webEventReceived.disconnect(onTabletWebEventReceived);
         }
 
@@ -130,9 +237,6 @@
         }
 
         tablet = null;
-
-        isAppActive = false;
-        stopApp();
     }
 
     setUp();
