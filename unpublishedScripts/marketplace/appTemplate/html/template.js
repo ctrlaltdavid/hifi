@@ -10,7 +10,7 @@
 
 /* global setTimeout */
 
-this.ui = (function () {
+(function () {
 
     "use strict";
 
