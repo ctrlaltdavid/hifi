@@ -138,12 +138,14 @@ this.ui = (function () {
         closeButton = document.getElementById("close-dialog");
         closeButton.addEventListener("click", onCloseButtonClick);
 
-        // Open the EventBridge to communicate with the main script.
-        EventBridge.scriptEventReceived.connect(onScriptEventReceived);
-        EventBridge.emitWebEvent(JSON.stringify({ command: EVENT_BRIDGE_OPEN_MESSAGE }));
+        setTimeout(function () {
+            // Open the EventBridge to communicate with the main script.
+            // Allow time for EventBridge to become ready.
+            EventBridge.scriptEventReceived.connect(onScriptEventReceived);
+            EventBridge.emitWebEvent(JSON.stringify({ command: EVENT_BRIDGE_OPEN_MESSAGE }));
+        }, EVENTBRIDGE_SETUP_DELAY)
     }
 
-    // Allow time for EventBridge to become ready.
-    setTimeout(onLoad, EVENTBRIDGE_SETUP_DELAY);
+    onLoad();
 
 }());
