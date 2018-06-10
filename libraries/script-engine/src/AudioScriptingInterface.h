@@ -34,17 +34,17 @@ protected:
 
     /**jsdoc
      * @function Audio.playSound
-     * @param {} sound
-     * @param {} [injectorOptions=null]
-     * @returns {object}
+     * @param {SoundObject} sound
+     * @param {AudioInjectorOptions} [injectorOptions={}]
+     * @returns {AudioInjector}
      */
     Q_INVOKABLE ScriptAudioInjector* playSound(SharedSoundPointer sound, const AudioInjectorOptions& injectorOptions = AudioInjectorOptions());
 
     /**jsdoc
      * @function Audio.playSystemSound
-     * @param {} sound
-     * @param {} position
-     * @returns {object}
+     * @param {SoundObject} sound
+     * @param {Vec3} position - TODO: Can this Vec3 value be successfully used in JavaScript?
+     * @returns {AudioInjector}
      */
     // FIXME: there is no way to play a positionless sound
     Q_INVOKABLE ScriptAudioInjector* playSystemSound(SharedSoundPointer sound, const QVector3D& position);
@@ -109,7 +109,7 @@ signals:
     /**jsdoc
      * A frame of mic input audio has been received and processed.
      * @function Audio.inputReceived
-     * @param {} inputSamples
+     * @param {Int16Array} inputSamples
      * @returns {Signal} 
      */
     void inputReceived(const QByteArray& inputSamples);

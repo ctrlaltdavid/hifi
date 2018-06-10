@@ -40,7 +40,7 @@ class Audio : public AudioScriptingInterface, protected ReadWriteLockable {
      * @property {number} inputVolume
      * @property {number} inputLevel <em>Read-only.</em>
      * @property {string} context <em>Read-only.</em>
-     * @property {} devices <em>Read-only.</em>
+     * @property {AudioDevices} devices <em>Read-only.</em>
      */
  
     Q_PROPERTY(bool muted READ isMuted WRITE setMuted NOTIFY mutedChanged)

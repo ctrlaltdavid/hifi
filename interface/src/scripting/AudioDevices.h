@@ -29,8 +29,194 @@ public:
     bool selectedHMD { false };
 };
 
+/**jsdoc
+ * @class AudioDevices.AudioOutputs
+ */
 class AudioDeviceList : public QAbstractListModel {
     Q_OBJECT
+
+    // API items from QAbstractListModel
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.canFetchMore
+     * @param {object} parent
+     * @returns {boolean}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.columnCount
+     * @param {object} [parent=null]
+     * @returns {number}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.columnsAboutToBeInserted
+     * @param {object} parent
+     * @param {number} first
+     * @param {number} last
+     * @returns {Signal}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.columnsAboutToBeMoved
+     * @param {object} sourceParent
+     * @param {number} sourceStart
+     * @param {number} sourceEnd
+     * @param {object} destinationParent
+     * @param {number} destinationColumn
+     * @returns {Signal}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.columnsAboutToBeRemoved
+     * @param {object} parent
+     * @param {number} first
+     * @param {number} last
+     * @returns {Signal}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.columnsInserted
+     * @param {object} parent
+     * @param {number} first
+     * @param {number} last
+     * @returns {Signal}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.columnsMoved
+     * @param {object} sourceParent
+     * @param {number} sourceStart
+     * @param {number} sourceEnd
+     * @param {object} destinationParent
+     * @param {number} destinationColumn
+     * @returns {Signal}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.columnsRemoved
+     * @param {object} parent
+     * @param {number} first
+     * @param {number} last
+     * @returns {Signal}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.data
+     * @param {object} parent
+     * @param {number} [role=0]
+     * @returns {object}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.dataChanged
+     * @param {object} topLeft
+     * @param {object} bottomRight
+     * @param {number[]} roles
+     * @returns {Signal}
+     */
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.deviceChanged(QAudioDeviceInfo) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.fetchMore(QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.flags(QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.hasChildren() function
+hasChildren(QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.hasIndex(int, int) function
+hasIndex(int, int, QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.headerData(int, Qt::Orientation) function
+headerData(int, Qt::Orientation, int) function
+headerDataChanged(Qt::Orientation, int, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.index(int, int) function
+index(int, int, QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.layoutAboutToBeChanged() function
+layoutAboutToBeChanged(QList<QPersistentModelIndex>) function
+layoutAboutToBeChanged(QList<QPersistentModelIndex>, QAbstractItemModel::LayoutChangeHint) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.layoutChanged() function
+layoutChanged(QList<QPersistentModelIndex>) function
+layoutChanged(QList<QPersistentModelIndex>, QAbstractItemModel::LayoutChangeHint) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.match(QModelIndex, int, QVariant) function
+match(QModelIndex, int, QVariant, int) function
+match(QModelIndex, int, QVariant, int, Qt::MatchFlags) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.modelAboutToBeReset() function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.modelReset() function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.onDeviceChanged(QAudioDeviceInfo, bool) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.onDevicesChanged(QList<QAudioDeviceInfo>) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.parent(QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.resetInternalData() function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.revert() function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowCount() function
+rowCount(QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowsAboutToBeInserted(QModelIndex, int, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowsAboutToBeMoved(QModelIndex, int, int, QModelIndex, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowsAboutToBeRemoved(QModelIndex, int, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowsInserted(QModelIndex, int, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowsMoved(QModelIndex, int, int, QModelIndex, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowsRemoved(QModelIndex, int, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowsRemoved(QModelIndex, int, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.selectedDevicePlugged(QAudioDeviceInfo, bool) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.setData(QModelIndex, QVariant) function
+setData(QModelIndex, QVariant, int) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.sibling(int, int, QModelIndex) function
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.submit() function
+
+     // TODO: Signals
 
 public:
     AudioDeviceList(QAudio::Mode mode = QAudio::AudioOutput);
@@ -39,10 +225,24 @@ public:
     virtual std::shared_ptr<AudioDevice> newDevice(const AudioDevice& device)
         { return std::make_shared<AudioDevice>(device); }
 
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.rowCount
+     * @param {object} [parent=null]
+     * @returns {number}
+     */
     int rowCount(const QModelIndex& parent = QModelIndex()) const override { Q_UNUSED(parent); return _devices.size(); }
+
+    // This function doesn't come through into API.
     QHash<int, QByteArray> roleNames() const override { return _roles; }
+
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.flags
+     */
     Qt::ItemFlags flags(const QModelIndex& index) const override { return _flags; }
 
+    /**jsdoc
+     * @function AudioDevices.AudioOutputs.data
+     */
     // get/set devices through a QML ListView
     QVariant data(const QModelIndex& index, int role) const override;
 
@@ -78,6 +278,13 @@ public:
     float peak { 0.0f };
 };
 
+/**jsdoc
+ * @class AudioDevices.AudioInputs
+ * @property {boolean} peakValuesAvailable <em>Read-only.</em>
+ * @property {boolean} peakValuesEnabled
+ *
+ * @borrows AudioDevices.AudioOutputs.rowCount as rowCount
+ */
 class AudioInputDeviceList : public AudioDeviceList {
     Q_OBJECT
     Q_PROPERTY(bool peakValuesAvailable READ peakValuesAvailable)
@@ -93,9 +300,20 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
 
 signals:
+
+    /**jsdoc
+     * @function AudioDevices.AudioInputs.peakValuesEnabledChanged
+     * @param {boolean} enabled
+     * @returns {Signal}
+     */
     void peakValuesEnabledChanged(bool enabled);
 
 protected slots:
+    /**jsdoc
+     * @function AudioDevices.AudioInputs.peakValuesEnabledChanged
+     * @param {number[]} peakValueList
+     * @deprecated TODO: Deprecate this signal?
+     */
     void onPeakValueListChanged(const QList<float>& peakValueList);
 
 protected:
@@ -111,6 +329,12 @@ protected:
 };
 class Audio;
 
+/**jsdoc
+ * @class AudioDevices
+ * @property {AudioDevices.AudioInputs} input <em>Read-only.</em>
+ * @property {AudioDevices.AudioOutputs} output <em>Read-only.</em>
+ */
+
 class AudioDevices : public QObject {
     Q_OBJECT
     Q_PROPERTY(AudioInputDeviceList* input READ getInputList NOTIFY nop)
@@ -121,6 +345,11 @@ public:
     virtual ~AudioDevices();
 
 signals:
+
+    /**jsdoc
+     * @function AudioDevices.nop
+     * @returns {Signal}
+     */
     void nop();
 
 private slots:

@@ -16,6 +16,12 @@
 
 #include <AudioInjector.h>
 
+/**jsdoc
+ * @class AudioInjector
+ * @property {boolean} playing <em>Read-only.</em>
+ * @property {number} loudness <em>Read-only.</em>
+ * @property {AudioInjectorOptions} options
+ */
 class ScriptAudioInjector : public QObject {
     Q_OBJECT
 
@@ -26,19 +32,54 @@ public:
     ScriptAudioInjector(const AudioInjectorPointer& injector);
     ~ScriptAudioInjector();
 public slots:
+
+    /**jsdoc
+     * @function AudioInjector.restart
+     */
     void restart() { _injector->restart(); }
+
+    /**jsdoc
+     * @function AudioInjector.stop
+     */
     void stop() { _injector->stop(); }
 
+    /**jsdoc
+     * @function AudioInjector.getOptions
+     * @returns {AudioInjectorOptions}
+     */
     const AudioInjectorOptions& getOptions() const { return _injector->getOptions(); }
+
+    /**jsdoc
+     * @function AudioInjector.setOptions
+     * @param {AudioInjectorOptions} options
+     */
     void setOptions(const AudioInjectorOptions& options) { _injector->setOptions(options); }
 
+    /**jsdoc
+     * @function AudioInjector.getLoudness
+     * @returns {number}
+     */
     float getLoudness() const { return _injector->getLoudness(); }
+
+    /**jsdoc
+     * @function AudioInjector.isPlaying
+     * @returns {boolean}
+     */
     bool isPlaying() const { return _injector->isPlaying(); }
 
 signals:
+
+    /**jsdoc
+     * @function AudioInjector.finished
+     * @returns {Signal}
+     */
     void finished();
 
 protected slots:
+
+    /**jsdoc
+     * @function AudioInjector.stopInjectorImmediately
+     */
     void stopInjectorImmediately();
 private:
     AudioInjectorPointer _injector;
