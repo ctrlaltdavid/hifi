@@ -143,7 +143,7 @@
             // Allow time for EventBridge to become ready.
             EventBridge.scriptEventReceived.connect(onScriptEventReceived);
             EventBridge.emitWebEvent(JSON.stringify({ command: EVENT_BRIDGE_OPEN_MESSAGE }));
-        }, EVENTBRIDGE_SETUP_DELAY)
+        }, EVENTBRIDGE_SETUP_DELAY);
     }
 
     onLoad();
