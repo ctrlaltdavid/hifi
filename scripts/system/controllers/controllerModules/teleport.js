@@ -184,11 +184,38 @@ Script.include("/~/system/libraries/controllers.js");
             renderStates: teleportRenderStates
         });
 
+        this.playArea = Overlays.addOverlay("image3d", {
+            url: Script.resolvePath("../../assets/images/play-area.png"),
+            color: COLORS_TELEPORT_CAN_TELEPORT,
+            alpha: 1.0,
+            drawInFront: true,
+            visible: false
+        });
+
+        this.isPlayAreaVisible = false;
+
+        this.setPlayAreaVisible = function (visible) {
+            if (this.isPlayAreaVisible === visible) {
+                return;
+            }
+            this.isPlayAreaVisible = visible;
+            Overlays.editOverlay(this.playArea, { visible: visible });
+        };
+
+        this.updatePlayArea = function (position) {
+            var VERTICAL_OFFSET = { x: 0, y: 0.01, z: 0 };
+            Overlays.editOverlay(this.playArea, {
+                position: Vec3.sum(position, VERTICAL_OFFSET),
+                rotation: Quat.fromVec3Degrees({ x: -90, y: 0, z: 0 })
+            });
+        };
+
         this.cleanup = function() {
             Pointers.removePointer(this.teleportRayHandVisible);
             Pointers.removePointer(this.teleportRayHandInvisible);
             Pointers.removePointer(this.teleportRayHeadVisible);
             Pointers.removePointer(this.teleportRayHeadInvisible);
+            Overlays.deleteOverlay(this.playArea);
         };
 
         this.buttonPress = function(value) {
@@ -305,6 +332,7 @@ Script.include("/~/system/libraries/controllers.js");
                     this.setTeleportState(mode, "cancel", "");
                 } else {
                     this.setTeleportState(mode, "teleport", "");
+                    this.updatePlayArea(result.intersection);
                 }
             } else if (teleportLocationType === TARGET.SEAT) {
                 this.setTeleportState(mode, "", "seat");
@@ -336,6 +364,7 @@ Script.include("/~/system/libraries/controllers.js");
         };
 
         this.disableLasers = function() {
+            this.setPlayAreaVisible(false);
             Pointers.disablePointer(_this.teleportRayHandVisible);
             Pointers.disablePointer(_this.teleportRayHandInvisible);
             Pointers.disablePointer(_this.teleportRayHeadVisible);
@@ -343,6 +372,8 @@ Script.include("/~/system/libraries/controllers.js");
         };
 
         this.setTeleportState = function(mode, visibleState, invisibleState) {
+            this.setPlayAreaVisible(visibleState === "teleport");
+
             if (mode === 'head') {
                 Pointers.setRenderState(_this.teleportRayHeadVisible, visibleState);
                 Pointers.setRenderState(_this.teleportRayHeadInvisible, invisibleState);
