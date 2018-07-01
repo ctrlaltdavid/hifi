@@ -56,8 +56,10 @@ class QScriptEngine;
  * @property {Uuid} tabletID - The UUID of the tablet body model overlay.
  * @property {Uuid} tabletScreenID - The UUID of the tablet's screen overlay.
  * @property {Uuid} homeButtonID - The UUID of the tablet's "home" button overlay.
- * @property {Uuid} homeButtonHighlightMaterialID - The UUID of the material entity used to highlight tablet button
- * @property {Uuid} homeButtonUnhighlightMaterialID - The UUID of the material entity use to unhighlight the entity
+ * @property {Uuid} homeButtonHighlightMaterialID - The UUID of the material entity used to highlight tablet button.
+ * @property {Uuid} homeButtonUnhighlightMaterialID - The UUID of the material entity use to unhighlight the tablet button.
+ * @property {Rect} playArea - The size and position of the HMD play area in sensor coordinates. If there is no play area, the 
+ *     values are <code>0</code>.
  */
 class HMDScriptingInterface : public AbstractHMDScriptingInterface, public Dependency {
     Q_OBJECT
@@ -71,6 +73,7 @@ class HMDScriptingInterface : public AbstractHMDScriptingInterface, public Depen
     Q_PROPERTY(QUuid tabletScreenID READ getCurrentTabletScreenID WRITE setCurrentTabletScreenID)
     Q_PROPERTY(QUuid homeButtonHighlightMaterialID READ getCurrentHomeButtonHighlightMaterialID WRITE setCurrentHomeButtonHighlightMaterialID)
     Q_PROPERTY(QUuid homeButtonUnhighlightMaterialID READ getCurrentHomeButtonUnhighlightMaterialID WRITE setCurrentHomeButtonUnhighlightMaterialID)
+    Q_PROPERTY(QVariant playArea READ getPlayAreaRect);
 
 public:
     
@@ -382,6 +385,8 @@ public:
 
     void setCurrentHomeButtonUnhighlightMaterialID(QUuid homeButtonUnhighlightMaterialID) { _homeButtonUnhighlightMaterialID = homeButtonUnhighlightMaterialID; }
     QUuid getCurrentHomeButtonUnhighlightMaterialID() { return _homeButtonUnhighlightMaterialID; }
+
+    QVariant getPlayAreaRect();
 
 private:
     bool _showTablet { false };

@@ -184,7 +184,7 @@ Script.include("/~/system/libraries/controllers.js");
             renderStates: teleportRenderStates
         });
 
-        this.playArea = Overlays.addOverlay("image3d", {
+        this.playAreaOverlay = Overlays.addOverlay("image3d", {
             url: Script.resolvePath("../../assets/images/play-area.png"),
             color: COLORS_TELEPORT_CAN_TELEPORT,
             alpha: 1.0,
@@ -192,20 +192,40 @@ Script.include("/~/system/libraries/controllers.js");
             visible: false
         });
 
+        this.playArea = { x: 0, y: 0, width: 0, height: 0 };
+        this.playAreaCenterOffset = { x: 0, y: 0, z: 0 };
+
         this.isPlayAreaVisible = false;
 
         this.setPlayAreaVisible = function (visible) {
-            if (this.isPlayAreaVisible === visible) {
+            if (!this.isPlayAreaAvailable || this.isPlayAreaVisible === visible) {
                 return;
             }
             this.isPlayAreaVisible = visible;
-            Overlays.editOverlay(this.playArea, { visible: visible });
+            Overlays.editOverlay(this.playAreaOverlay, { visible: visible });
         };
+
+        this.isPlayAreaAvailable = false;
+
+        this.setPlayAreaAvailable = function () {
+            this.playArea = HMD.playArea;
+            this.isPlayAreaAvailable = HMD.active && this.playArea.x !== 0 && this.playArea.y !== 0;
+            if (this.isPlayAreaAvailable) {
+                this.playAreaCenterOffset = { x: -this.playArea.x, y: 0, z: -this.playArea.y };
+                Overlays.editOverlay(this.playAreaOverlay, {
+                    dimensions: { x: this.playArea.width, y: this.playArea.height }
+                });
+            } else {
+                Overlays.editOverlay(this.playAreaOverlay, { visible: false });
+            }
+        };
+
+        this.setPlayAreaAvailable();
 
         this.updatePlayArea = function (position) {
             var VERTICAL_OFFSET = { x: 0, y: 0.01, z: 0 };
-            Overlays.editOverlay(this.playArea, {
-                position: Vec3.sum(position, VERTICAL_OFFSET),
+            Overlays.editOverlay(this.playAreaOverlay, {
+                position: Vec3.sum(Vec3.sum(position, this.playAreaCenterOffset), VERTICAL_OFFSET),
                 rotation: Quat.fromVec3Degrees({ x: -90, y: 0, z: 0 })
             });
         };
@@ -215,7 +235,7 @@ Script.include("/~/system/libraries/controllers.js");
             Pointers.removePointer(this.teleportRayHandInvisible);
             Pointers.removePointer(this.teleportRayHeadVisible);
             Pointers.removePointer(this.teleportRayHeadInvisible);
-            Overlays.deleteOverlay(this.playArea);
+            Overlays.deleteOverlay(this.playAreaOverlay);
         };
 
         this.buttonPress = function(value) {
@@ -531,5 +551,10 @@ Script.include("/~/system/libraries/controllers.js");
     Messages.subscribe('Hifi-Teleport-Ignore-Add');
     Messages.subscribe('Hifi-Teleport-Ignore-Remove');
     Messages.messageReceived.connect(handleTeleportMessages);
+
+    HMD.displayModeChanged.connect(function () {
+        leftTeleporter.setPlayAreaAvailable();
+        rightTeleporter.setPlayAreaAvailable();
+    });
 
 }()); // END LOCAL_SCOPE

@@ -112,6 +112,8 @@ public:
     virtual bool suppressKeyboard() { return false;  }
     virtual void unsuppressKeyboard() {};
     virtual bool isKeyboardVisible() { return false; }
+
+    virtual QRectF getPlayAreaRect() { return QRectF(); }
 };
 
 class DisplayPlugin : public Plugin, public HmdDisplay {

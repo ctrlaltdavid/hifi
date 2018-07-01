@@ -167,3 +167,38 @@ void OculusBaseDisplayPlugin::updatePresentPose() {
     _currentPresentFrameInfo.presentPose = ovr::toGlm(trackingState.HeadPose.ThePose);
     _currentPresentFrameInfo.renderPose = _currentPresentFrameInfo.presentPose;
 }
+
+QRectF OculusBaseDisplayPlugin::getPlayAreaRect() {
+    if (!_session) {
+        return QRectF();
+    }
+
+    int floorPointsCount = 0;
+    auto result = ovr_GetBoundaryGeometry(_session, ovrBoundary_PlayArea, nullptr, &floorPointsCount);
+    if (!OVR_SUCCESS(result) || floorPointsCount != 4) {
+        return QRectF();
+    }
+
+    auto floorPoints = new ovrVector3f[floorPointsCount];
+    result = ovr_GetBoundaryGeometry(_session, ovrBoundary_PlayArea, floorPoints, nullptr);
+    if (!OVR_SUCCESS(result)) {
+        return QRectF();
+    }
+
+    auto minXZ = glm::vec3();
+    auto maxXZ = glm::vec3();
+    minXZ = ovr::toGlm(floorPoints[0]);
+    maxXZ = minXZ;
+    for (int i = 1; i < floorPointsCount; i++) {
+        auto point = ovr::toGlm(floorPoints[i]);
+        minXZ.x = std::min(minXZ.x, point.x);
+        minXZ.z = std::min(minXZ.z, point.z);
+        maxXZ.x = std::max(maxXZ.x, point.x);
+        maxXZ.z = std::max(maxXZ.z, point.z);
+    }
+
+    glm::vec2 center = glm::vec2((minXZ.x + maxXZ.x) / 2, (minXZ.z + maxXZ.z) / 2);
+    glm::vec2 dimensions = glm::vec2(maxXZ.x - minXZ.x, maxXZ.z - minXZ.z);
+
+    return QRectF(center.x, center.y, dimensions.x, dimensions.y);
+}
