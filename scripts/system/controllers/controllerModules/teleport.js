@@ -192,10 +192,11 @@ Script.include("/~/system/libraries/controllers.js");
             visible: false
         });
 
-        this.playArea = { x: 0, y: 0, width: 0, height: 0 };
-        this.playAreaCenterOffset = { x: 0, y: 0, z: 0 };
-
+        this.PLAY_AREA_OVERLAY_OFFSET = { x: 0, y: 0.02, z: 0 }; // Raise above surface to make visible.
+        this.PLAY_AREA_OVERLAY_ROTATION = Quat.fromVec3Degrees({ x: -90, y: 0, z: 0 }); // Make overlay horizontal.
+        this.playAreaCenterOffset = this.PLAY_AREA_OVERLAY_OFFSET;
         this.isPlayAreaVisible = false;
+        this.isPlayAreaAvailable = false;
 
         this.setPlayAreaVisible = function (visible) {
             if (!this.isPlayAreaAvailable || this.isPlayAreaVisible === visible) {
@@ -205,15 +206,14 @@ Script.include("/~/system/libraries/controllers.js");
             Overlays.editOverlay(this.playAreaOverlay, { visible: visible });
         };
 
-        this.isPlayAreaAvailable = false;
-
         this.setPlayAreaAvailable = function () {
-            this.playArea = HMD.playArea;
-            this.isPlayAreaAvailable = HMD.active && this.playArea.x !== 0 && this.playArea.y !== 0;
+            var playArea = HMD.playArea;
+            this.isPlayAreaAvailable = HMD.active && playArea.x !== 0 && playArea.y !== 0;
             if (this.isPlayAreaAvailable) {
-                this.playAreaCenterOffset = { x: -this.playArea.x, y: 0, z: -this.playArea.y };
+                this.playAreaCenterOffset = Vec3.sum({ x: playArea.x, y: 0, z: playArea.y }, this.PLAY_AREA_OVERLAY_OFFSET);
                 Overlays.editOverlay(this.playAreaOverlay, {
-                    dimensions: { x: this.playArea.width, y: this.playArea.height }
+                    dimensions: { x: playArea.width, y: playArea.height },
+                    rotation: this.PLAY_AREA_OVERLAY_ROTATION
                 });
             } else {
                 Overlays.editOverlay(this.playAreaOverlay, { visible: false });
@@ -223,10 +223,16 @@ Script.include("/~/system/libraries/controllers.js");
         this.setPlayAreaAvailable();
 
         this.updatePlayArea = function (position) {
-            var VERTICAL_OFFSET = { x: 0, y: 0.01, z: 0 };
+            var sensorToWorldMatrix = MyAvatar.sensorToWorldMatrix;
+            var sensorToWorldRotation = Mat4.extractRotation(MyAvatar.sensorToWorldMatrix);
+            var worldToSensorMatrix = Mat4.inverse(sensorToWorldMatrix);
+            var avatarSensorPosition = Mat4.transformPoint(worldToSensorMatrix, MyAvatar.position);
+            avatarSensorPosition.y = 0;
+
             Overlays.editOverlay(this.playAreaOverlay, {
-                position: Vec3.sum(Vec3.sum(position, this.playAreaCenterOffset), VERTICAL_OFFSET),
-                rotation: Quat.fromVec3Degrees({ x: -90, y: 0, z: 0 })
+                position: Vec3.sum(position,
+                    Vec3.multiplyQbyV(sensorToWorldRotation, Vec3.subtract(this.playAreaCenterOffset, avatarSensorPosition))),
+                rotation: Quat.multiply(sensorToWorldRotation, this.PLAY_AREA_OVERLAY_ROTATION)
             });
         };
 
