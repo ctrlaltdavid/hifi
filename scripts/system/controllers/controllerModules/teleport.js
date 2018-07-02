@@ -194,6 +194,7 @@ Script.include("/~/system/libraries/controllers.js");
 
         this.PLAY_AREA_OVERLAY_OFFSET = { x: 0, y: 0.02, z: 0 }; // Raise above surface to make visible.
         this.PLAY_AREA_OVERLAY_ROTATION = Quat.fromVec3Degrees({ x: -90, y: 0, z: 0 }); // Make overlay horizontal.
+        this.PLAY_AREA_OVERLAY_SCALE = 256 / 250; // Size of image / size of rectangle in image.
         this.playAreaCenterOffset = this.PLAY_AREA_OVERLAY_OFFSET;
         this.isPlayAreaVisible = false;
         this.isPlayAreaAvailable = false;
@@ -212,7 +213,10 @@ Script.include("/~/system/libraries/controllers.js");
             if (this.isPlayAreaAvailable) {
                 this.playAreaCenterOffset = Vec3.sum({ x: playArea.x, y: 0, z: playArea.y }, this.PLAY_AREA_OVERLAY_OFFSET);
                 Overlays.editOverlay(this.playAreaOverlay, {
-                    dimensions: { x: playArea.width, y: playArea.height },
+                    dimensions: {
+                        x: playArea.width * this.PLAY_AREA_OVERLAY_SCALE,
+                        y: playArea.height * this.PLAY_AREA_OVERLAY_SCALE
+                    },
                     rotation: this.PLAY_AREA_OVERLAY_ROTATION
                 });
             } else {
