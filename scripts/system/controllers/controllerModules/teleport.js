@@ -194,10 +194,29 @@ Script.include("/~/system/libraries/controllers.js");
 
         this.PLAY_AREA_OVERLAY_OFFSET = { x: 0, y: 0.02, z: 0 }; // Raise above surface to make visible.
         this.PLAY_AREA_OVERLAY_ROTATION = Quat.fromVec3Degrees({ x: -90, y: 0, z: 0 }); // Make overlay horizontal.
-        this.PLAY_AREA_OVERLAY_SCALE = 256 / 250; // Size of image / size of rectangle in image.
+        this.PLAY_AREA_OVERLAY_IMAGE_SIZE = 256;
+        this.PLAY_AREA_OVERLAY_IMAGE_RECTANGLE = 250; // Size of rectangle within image.
+        this.PLAY_AREA_OVERLAY_SCALE = this.PLAY_AREA_OVERLAY_IMAGE_SIZE / this.PLAY_AREA_OVERLAY_IMAGE_RECTANGLE;
+        this.playArea = { x: 0, y: 0 };
         this.playAreaCenterOffset = this.PLAY_AREA_OVERLAY_OFFSET;
         this.isPlayAreaVisible = false;
         this.isPlayAreaAvailable = false;
+
+        this.setPlayAreaDimensions = function () {
+            var avatarScale = MyAvatar.scale;
+            Overlays.editOverlay(this.playAreaOverlay, {
+                dimensions: {
+                    x: avatarScale * this.playArea.width,
+                    y: avatarScale * this.playArea.height
+                }
+            });
+        };
+
+        this.updatePlayAreaScale = function () {
+            if (this.isPlayAreaAvailable) {
+                this.setPlayAreaDimensions();
+            }
+        };
 
         this.setPlayAreaVisible = function (visible) {
             if (!this.isPlayAreaAvailable || this.isPlayAreaVisible === visible) {
@@ -208,17 +227,14 @@ Script.include("/~/system/libraries/controllers.js");
         };
 
         this.setPlayAreaAvailable = function () {
-            var playArea = HMD.playArea;
-            this.isPlayAreaAvailable = HMD.active && playArea.x !== 0 && playArea.y !== 0;
+            this.playArea = HMD.playArea;
+            this.playArea.width = this.PLAY_AREA_OVERLAY_SCALE * this.playArea.width;
+            this.playArea.height = this.PLAY_AREA_OVERLAY_SCALE * this.playArea.height;
+            this.isPlayAreaAvailable = HMD.active && this.playArea.width !== 0 && this.playArea.height !== 0;
             if (this.isPlayAreaAvailable) {
-                this.playAreaCenterOffset = Vec3.sum({ x: playArea.x, y: 0, z: playArea.y }, this.PLAY_AREA_OVERLAY_OFFSET);
-                Overlays.editOverlay(this.playAreaOverlay, {
-                    dimensions: {
-                        x: playArea.width * this.PLAY_AREA_OVERLAY_SCALE,
-                        y: playArea.height * this.PLAY_AREA_OVERLAY_SCALE
-                    },
-                    rotation: this.PLAY_AREA_OVERLAY_ROTATION
-                });
+                this.playAreaCenterOffset = Vec3.sum({ x: this.playArea.x, y: 0, z: this.playArea.y }, 
+                    this.PLAY_AREA_OVERLAY_OFFSET);
+                this.setPlayAreaDimensions();
             } else {
                 Overlays.editOverlay(this.playAreaOverlay, { visible: false });
             }
@@ -235,7 +251,8 @@ Script.include("/~/system/libraries/controllers.js");
 
             Overlays.editOverlay(this.playAreaOverlay, {
                 position: Vec3.sum(position,
-                    Vec3.multiplyQbyV(sensorToWorldRotation, Vec3.subtract(this.playAreaCenterOffset, avatarSensorPosition))),
+                    Vec3.multiplyQbyV(sensorToWorldRotation,
+                        Vec3.multiply(MyAvatar.scale, Vec3.subtract(this.playAreaCenterOffset, avatarSensorPosition)))),
                 rotation: Quat.multiply(sensorToWorldRotation, this.PLAY_AREA_OVERLAY_ROTATION)
             });
         };
@@ -565,6 +582,11 @@ Script.include("/~/system/libraries/controllers.js");
     HMD.displayModeChanged.connect(function () {
         leftTeleporter.setPlayAreaAvailable();
         rightTeleporter.setPlayAreaAvailable();
+    });
+
+    MyAvatar.scaleChanged.connect(function () {
+        leftTeleporter.updatePlayAreaScale();
+        rightTeleporter.updatePlayAreaScale();
     });
 
 }()); // END LOCAL_SCOPE
