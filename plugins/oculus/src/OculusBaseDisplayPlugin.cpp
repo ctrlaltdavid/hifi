@@ -210,7 +210,7 @@ QVector<glm::vec3> OculusBaseDisplayPlugin::getSensorPositions() {
 
     QVector<glm::vec3> result;
     auto numTrackers = ovr_GetTrackerCount(_session);
-    for (int i = 0; i < numTrackers; i++) {
+    for (uint i = 0; i < numTrackers; i++) {
         auto trackerPose = ovr_GetTrackerPose(_session, i);
         if (trackerPose.TrackerFlags & ovrTracker_PoseTracked) {
             result.append(ovr::toGlm(trackerPose.Pose.Position));
