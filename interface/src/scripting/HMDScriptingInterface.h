@@ -58,8 +58,8 @@ class QScriptEngine;
  * @property {Uuid} homeButtonID - The UUID of the tablet's "home" button overlay.
  * @property {Uuid} homeButtonHighlightMaterialID - The UUID of the material entity used to highlight tablet button.
  * @property {Uuid} homeButtonUnhighlightMaterialID - The UUID of the material entity use to unhighlight the tablet button.
- * @property {Rect} playArea - The size and position of the HMD play area in sensor coordinates. If there is no play area, the 
- *     values are <code>0</code>.
+ * @property {Rect} playArea=0,0,0,0 - The size and position of the HMD play area in sensor coordinates. <em>Read-only.</em>
+ * @property {Vec3[]} sensorPositions=[]] - The positions of the VR system sensors in sensor coordinates. <em>Read-only.</em>
  */
 class HMDScriptingInterface : public AbstractHMDScriptingInterface, public Dependency {
     Q_OBJECT
@@ -74,6 +74,7 @@ class HMDScriptingInterface : public AbstractHMDScriptingInterface, public Depen
     Q_PROPERTY(QUuid homeButtonHighlightMaterialID READ getCurrentHomeButtonHighlightMaterialID WRITE setCurrentHomeButtonHighlightMaterialID)
     Q_PROPERTY(QUuid homeButtonUnhighlightMaterialID READ getCurrentHomeButtonUnhighlightMaterialID WRITE setCurrentHomeButtonUnhighlightMaterialID)
     Q_PROPERTY(QVariant playArea READ getPlayAreaRect);
+    Q_PROPERTY(QVector<glm::vec3> sensorPositions READ getSensorPositions);
 
 public:
     
@@ -387,6 +388,7 @@ public:
     QUuid getCurrentHomeButtonUnhighlightMaterialID() { return _homeButtonUnhighlightMaterialID; }
 
     QVariant getPlayAreaRect();
+    QVector<glm::vec3> getSensorPositions();
 
 private:
     bool _showTablet { false };

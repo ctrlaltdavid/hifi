@@ -29,6 +29,7 @@ public:
     float getTargetFrameRate() const override { return _hmdDesc.DisplayRefreshRate; }
 
     QRectF getPlayAreaRect() override;
+    QVector<glm::vec3> getSensorPositions() override;
    
 protected:
     void customizeContext() override;

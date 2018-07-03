@@ -202,3 +202,20 @@ QRectF OculusBaseDisplayPlugin::getPlayAreaRect() {
 
     return QRectF(center.x, center.y, dimensions.x, dimensions.y);
 }
+
+QVector<glm::vec3> OculusBaseDisplayPlugin::getSensorPositions() {
+    if (!_session) {
+        return QVector<glm::vec3>();
+    }
+
+    QVector<glm::vec3> result;
+    auto numTrackers = ovr_GetTrackerCount(_session);
+    for (int i = 0; i < numTrackers; i++) {
+        auto trackerPose = ovr_GetTrackerPose(_session, i);
+        if (trackerPose.TrackerFlags & ovrTracker_PoseTracked) {
+            result.append(ovr::toGlm(trackerPose.Pose.Position));
+        }
+    }
+
+    return result;
+}

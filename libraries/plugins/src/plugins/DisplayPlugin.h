@@ -114,6 +114,7 @@ public:
     virtual bool isKeyboardVisible() { return false; }
 
     virtual QRectF getPlayAreaRect() { return QRectF(); }
+    virtual QVector<glm::vec3> getSensorPositions() { return QVector<glm::vec3>(); }
 };
 
 class DisplayPlugin : public Plugin, public HmdDisplay {

@@ -200,3 +200,7 @@ QVariant HMDScriptingInterface::getPlayAreaRect() {
     auto rect = qApp->getActiveDisplayPlugin()->getPlayAreaRect();
     return qRectFToVariant(rect);
 }
+
+QVector<glm::vec3> HMDScriptingInterface::getSensorPositions() {
+    return qApp->getActiveDisplayPlugin()->getSensorPositions();
+}

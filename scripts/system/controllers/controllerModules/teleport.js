@@ -184,14 +184,6 @@ Script.include("/~/system/libraries/controllers.js");
             renderStates: teleportRenderStates
         });
 
-        this.playAreaOverlay = Overlays.addOverlay("image3d", {
-            url: Script.resolvePath("../../assets/images/play-area.png"),
-            color: COLORS_TELEPORT_CAN_TELEPORT,
-            alpha: 1.0,
-            drawInFront: true,
-            visible: false
-        });
-
         this.PLAY_AREA_OVERLAY_OFFSET = { x: 0, y: 0.02, z: 0 }; // Raise above surface to make visible.
         this.PLAY_AREA_OVERLAY_ROTATION = Quat.fromVec3Degrees({ x: -90, y: 0, z: 0 }); // Make overlay horizontal.
         this.PLAY_AREA_OVERLAY_IMAGE_SIZE = 256;
@@ -202,14 +194,61 @@ Script.include("/~/system/libraries/controllers.js");
         this.isPlayAreaVisible = false;
         this.isPlayAreaAvailable = false;
 
+        this.playAreaSensorPositions = [];
+        this.playAreaSensorPositionOverlays = [];
+        this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS = { x: 0.11, y: 0.26, z: 0.11 };
+        this.PLAY_AREA_SENSOR_OVERLAY_ROTATION = Quat.fromVec3Degrees({ x: 90, y: 0, z: 0 });
+
+        this.playAreaOverlay = Overlays.addOverlay("image3d", {
+            url: Script.resolvePath("../../assets/images/play-area.png"),
+            color: COLORS_TELEPORT_CAN_TELEPORT,
+            alpha: 1.0,
+            drawInFront: false,
+            visible: false
+        });
+
+        this.addPlayAreaSensorPositionOverlay = function () {
+            var overlay = Overlays.addOverlay("shape", {
+                shape: "Cylinder",
+                color: COLORS_TELEPORT_CAN_TELEPORT,
+                alpha: 0.8,
+                dimensions: this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS,
+                parentID: this.playAreaOverlay,
+                localRotation: this.PLAY_AREA_SENSOR_OVERLAY_ROTATION,
+                solid: true,
+                drawInFront: false,
+                visible: false
+            });
+            this.playAreaSensorPositionOverlays.push(overlay);
+        };
+
+        this.deletePlayAreaSensorPositionOverlay = function (index) {
+            Overlays.deleteOverlay(this.playAreaSensorPositionOverlays[index]);
+            this.playAreaSensorPositionOverlays.splice(index, 1);
+        };
+
         this.setPlayAreaDimensions = function () {
             var avatarScale = MyAvatar.scale;
+
             Overlays.editOverlay(this.playAreaOverlay, {
                 dimensions: {
                     x: avatarScale * this.playArea.width,
                     y: avatarScale * this.playArea.height
                 }
             });
+
+            for (var i = 0; i < this.playAreaSensorPositionOverlays.length; i++) {
+                var localPosition = this.playAreaSensorPositions[i];
+                localPosition = Vec3.multiply(avatarScale, localPosition);
+                // Tracking origin is at eye height.
+                localPosition.y = MyAvatar.getEyeHeight() + localPosition.y
+                    - avatarScale * this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS.y / 2;
+                Overlays.editOverlay(this.playAreaSensorPositionOverlays[i], {
+                    dimensions: Vec3.multiply(avatarScale, this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS),
+                    parentID: this.playAreaOverlay,
+                    localPosition: Vec3.multiplyQbyV(Quat.inverse(this.PLAY_AREA_OVERLAY_ROTATION), localPosition)
+                });
+            }
         };
 
         this.updatePlayAreaScale = function () {
@@ -224,6 +263,9 @@ Script.include("/~/system/libraries/controllers.js");
             }
             this.isPlayAreaVisible = visible;
             Overlays.editOverlay(this.playAreaOverlay, { visible: visible });
+            for (var i = 0; i < this.playAreaSensorPositionOverlays.length; i++) {
+                Overlays.editOverlay(this.playAreaSensorPositionOverlays[i], { visible: visible });
+            }
         };
 
         this.setPlayAreaAvailable = function () {
@@ -234,9 +276,24 @@ Script.include("/~/system/libraries/controllers.js");
             if (this.isPlayAreaAvailable) {
                 this.playAreaCenterOffset = Vec3.sum({ x: this.playArea.x, y: 0, z: this.playArea.y }, 
                     this.PLAY_AREA_OVERLAY_OFFSET);
+
+                this.playAreaSensorPositions = HMD.sensorPositions;
+                for (var i = 0; i < this.playAreaSensorPositions.length; i++) {
+                    if (i > this.playAreaSensorPositionOverlays.length - 1) {
+                        this.addPlayAreaSensorPositionOverlay();
+                    }
+                }
+
+                for (i = this.playAreaSensorPositionOverlays.length; i > this.playAreaSensorPositions.length; i--) {
+                    this.deletePlayAreaSensorPositionOverlay(i);
+                }
+
                 this.setPlayAreaDimensions();
             } else {
                 Overlays.editOverlay(this.playAreaOverlay, { visible: false });
+                for (i = 0; i < this.playAreaSensorPositionOverlays.length; i++) {
+                    Overlays.editOverlay(this.playAreaSensorPositionOverlays[i], { visible: false });
+                }
             }
         };
 
@@ -263,6 +320,9 @@ Script.include("/~/system/libraries/controllers.js");
             Pointers.removePointer(this.teleportRayHeadVisible);
             Pointers.removePointer(this.teleportRayHeadInvisible);
             Overlays.deleteOverlay(this.playAreaOverlay);
+            for (var i = 0; i < this.playAreaSensorPositionOverlays.length; i++) {
+                Overlays.deleteOverlay(this.playAreaSensorPositionOverlays[i]);
+            }
         };
 
         this.buttonPress = function(value) {
