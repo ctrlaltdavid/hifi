@@ -240,9 +240,13 @@ Script.include("/~/system/libraries/controllers.js");
             for (var i = 0; i < this.playAreaSensorPositionOverlays.length; i++) {
                 var localPosition = this.playAreaSensorPositions[i];
                 localPosition = Vec3.multiply(avatarScale, localPosition);
+                /*
                 // Tracking origin is at eye height.
                 localPosition.y = MyAvatar.getEyeHeight() + localPosition.y
                     - avatarScale * this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS.y / 2;
+                */
+                // Position on the floor.
+                localPosition.y = avatarScale * this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS.y / 2;
                 Overlays.editOverlay(this.playAreaSensorPositionOverlays[i], {
                     dimensions: Vec3.multiply(avatarScale, this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS),
                     parentID: this.playAreaOverlay,
