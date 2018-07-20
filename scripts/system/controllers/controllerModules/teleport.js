@@ -199,10 +199,17 @@ Script.include("/~/system/libraries/controllers.js");
         this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS = { x: 0.11, y: 0.26, z: 0.11 };
         this.PLAY_AREA_SENSOR_OVERLAY_ROTATION = Quat.fromVec3Degrees({ x: 90, y: 0, z: 0 });
 
+        this.PLAY_AREA_FADE_DELAY = 500;
+        this.PLAY_AREA_FADE_DURATION = 200;
+        this.PLAY_AREA_FADE_INTERVAL = 25;
+        this.PLAY_AREA_BOX_ALPHA = 1.0;
+        this.PLAY_AREA_SENSOR_ALPHA = 0.8;
+        this.PLAY_AREA_FADE_DELTA = this.PLAY_AREA_FADE_INTERVAL / this.PLAY_AREA_FADE_DURATION;
+
         this.playAreaOverlay = Overlays.addOverlay("image3d", {
             url: Script.resolvePath("../../assets/images/play-area.png"),
             color: COLORS_TELEPORT_CAN_TELEPORT,
-            alpha: 1.0,
+            alpha: this.PLAY_AREA_BOX_ALPHA,
             drawInFront: false,
             visible: false
         });
@@ -211,7 +218,7 @@ Script.include("/~/system/libraries/controllers.js");
             var overlay = Overlays.addOverlay("shape", {
                 shape: "Cylinder",
                 color: COLORS_TELEPORT_CAN_TELEPORT,
-                alpha: 0.8,
+                alpha: this.PLAY_AREA_SENSOR_ALPHA,
                 dimensions: this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS,
                 parentID: this.playAreaOverlay,
                 localRotation: this.PLAY_AREA_SENSOR_OVERLAY_ROTATION,
@@ -261,14 +268,56 @@ Script.include("/~/system/libraries/controllers.js");
             }
         };
 
-        this.setPlayAreaVisible = function (visible) {
+        this.playAreaFadeTimer = null;
+        this.PlayAreaFadeFactor = 1.0;
+
+        this.fadePlayArea = function () {
+            var i, length;
+            _this.PlayAreaFadeFactor = _this.PlayAreaFadeFactor - _this.PLAY_AREA_FADE_DELTA;
+            if (_this.PlayAreaFadeFactor > 0) {
+                // Fade.
+                Overlays.editOverlay(_this.playAreaOverlay, { alpha: _this.PlayAreaFadeFactor * _this.PLAY_AREA_BOX_ALPHA });
+                var sensorAlpha = _this.PlayAreaFadeFactor * _this.PLAY_AREA_SENSOR_ALPHA;
+                for (i = 0, length = _this.playAreaSensorPositionOverlays.length; i < length; i++) {
+                    Overlays.editOverlay(_this.playAreaSensorPositionOverlays[i], { alpha: sensorAlpha });
+                }
+                _this.playAreaFadeTimer = Script.setTimeout(_this.fadePlayArea, _this.PLAY_AREA_FADE_INTERVAL);
+            } else {
+                // Make invisible.
+                Overlays.editOverlay(_this.playAreaOverlay, { visible: false });
+                for (i = 0, length = _this.playAreaSensorPositionOverlays.length; i < length; i++) {
+                    Overlays.editOverlay(_this.playAreaSensorPositionOverlays[i], { visible: false });
+                }
+                _this.playAreaFadeTimer = null;
+            }
+        };
+
+        this.setPlayAreaVisible = function (visible, noFade) {
             if (!this.isPlayAreaAvailable || this.isPlayAreaVisible === visible) {
                 return;
             }
             this.isPlayAreaVisible = visible;
-            Overlays.editOverlay(this.playAreaOverlay, { visible: visible });
-            for (var i = 0; i < this.playAreaSensorPositionOverlays.length; i++) {
-                Overlays.editOverlay(this.playAreaSensorPositionOverlays[i], { visible: visible });
+            if (this.playAreaFadeTimer !== null) {
+                Script.clearTimeout(this.playAreaFadeTimer);
+                this.playAreaFadeTimer = null;
+            }
+            if (visible || noFade) {
+                // Immediately make visible or invisible.
+                this.isPlayAreaVisible = visible;
+                Overlays.editOverlay(this.playAreaOverlay, {
+                    alpha: this.PLAY_AREA_BOX_ALPHA,
+                    visible: visible
+                });
+                for (var i = 0; i < this.playAreaSensorPositionOverlays.length; i++) {
+                    Overlays.editOverlay(this.playAreaSensorPositionOverlays[i], {
+                        alpha: this.PLAY_AREA_SENSOR_ALPHA,
+                        visible: visible
+                    });
+                }
+            } else {
+                // Fade out over time.
+                this.PlayAreaFadeFactor = 1.0;
+                _this.playAreaFadeTimer = Script.setTimeout(this.fadePlayArea, this.PLAY_AREA_FADE_DELAY);
             }
         };
 
@@ -483,7 +532,7 @@ Script.include("/~/system/libraries/controllers.js");
         };
 
         this.setTeleportState = function(mode, visibleState, invisibleState) {
-            this.setPlayAreaVisible(visibleState === "teleport");
+            this.setPlayAreaVisible(visibleState === "teleport", true);
 
             if (mode === 'head') {
                 Pointers.setRenderState(_this.teleportRayHeadVisible, visibleState);
