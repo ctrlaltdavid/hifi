@@ -43,6 +43,12 @@ Script.include("/~/system/libraries/controllers.js");
         blue: 255
     };
 
+    var COLORS_TELEPORT_CAN_TELEPORT_WARNING = {
+        red: 255,
+        green: 97,
+        blue: 97
+    };
+
     var COLORS_TELEPORT_CANCEL = {
         red: 255,
         green: 184,
@@ -199,6 +205,11 @@ Script.include("/~/system/libraries/controllers.js");
         this.PLAY_AREA_SENSOR_OVERLAY_DIMENSIONS = { x: 0.11, y: 0.26, z: 0.11 };
         this.PLAY_AREA_SENSOR_OVERLAY_ROTATION = Quat.fromVec3Degrees({ x: 90, y: 0, z: 0 });
 
+        this.SENSOR_ORIENTATION_WARNING_DEGREES = 150;
+        this.SENSOR_ORIENTATION_WARNING_DOT_PRODUCT = Math.cos(this.SENSOR_ORIENTATION_WARNING_DEGREES / 180 * Math.PI);
+        this.isSensorWarningPossible = false;
+        this.isSensorWarning = false;
+
         this.playAreaOverlay = Overlays.addOverlay("image3d", {
             url: Script.resolvePath("../../assets/images/play-area.png"),
             color: COLORS_TELEPORT_CAN_TELEPORT,
@@ -292,6 +303,9 @@ Script.include("/~/system/libraries/controllers.js");
                     this.deletePlayAreaSensorPositionOverlay(i);
                 }
 
+                this.isSensorWarningPossible = this.playAreaSensorPositions.length > 0;
+                this.isSensorWarning = false;
+
                 this.setPlayAreaDimensions();
             } else {
                 Overlays.editOverlay(this.playAreaOverlay, { visible: false });
@@ -303,12 +317,32 @@ Script.include("/~/system/libraries/controllers.js");
 
         this.setPlayAreaAvailable();
 
+        this.updateSensorWarning = function (isSensorWarning) {
+            this.isSensorWarning = isSensorWarning;
+            var playAreaColor = this.isSensorWarning ? COLORS_TELEPORT_CAN_TELEPORT_WARNING : COLORS_TELEPORT_CAN_TELEPORT;
+            Overlays.editOverlay(this.playAreaOverlay, { color: playAreaColor });
+            for (var i = 0, length = this.playAreaSensorPositionOverlays.length; i < length; i++) {
+                Overlays.editOverlay(this.playAreaSensorPositionOverlays[i], { color: playAreaColor });
+            }
+        };
+
         this.updatePlayArea = function (position) {
             var sensorToWorldMatrix = MyAvatar.sensorToWorldMatrix;
             var sensorToWorldRotation = Mat4.extractRotation(MyAvatar.sensorToWorldMatrix);
             var worldToSensorMatrix = Mat4.inverse(sensorToWorldMatrix);
             var avatarSensorPosition = Mat4.transformPoint(worldToSensorMatrix, MyAvatar.position);
             avatarSensorPosition.y = 0;
+
+            if (this.isSensorWarningPossible) {
+                var hmdSensorDirection = Mat4.transformVector(worldToSensorMatrix, Quat.getFront(HMD.orientation));
+                hmdSensorDirection.y = 0; // In horizontal plane.
+                hmdSensorDirection = Vec3.normalize(hmdSensorDirection);
+                var isSensorWarning = Vec3.dot(hmdSensorDirection, Vec3.UNIT_NEG_Z)
+                    < this.SENSOR_ORIENTATION_WARNING_DOT_PRODUCT;
+                if (isSensorWarning !== this.isSensorWarning) {
+                    this.updateSensorWarning(isSensorWarning);
+                }
+            }
 
             Overlays.editOverlay(this.playAreaOverlay, {
                 position: Vec3.sum(position,
