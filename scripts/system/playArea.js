@@ -45,11 +45,9 @@
 
         fadeTimer = null,
         fadeFactor,
-        PLAY_AREA_FADE_OK_DURATION = 1000,
-        PLAY_AREA_FADE_OUT_DURATION = 500,
+        PLAY_AREA_FADE_DURATION = 1500,
         PLAY_AREA_FADE_INTERVAL = 25,
-        PLAY_AREA_FADE_OK_FACTOR = PLAY_AREA_FADE_INTERVAL / PLAY_AREA_FADE_OK_DURATION,
-        PLAY_AREA_FADE_OUT_FACTOR = PLAY_AREA_FADE_INTERVAL / PLAY_AREA_FADE_OUT_DURATION,
+        PLAY_AREA_FADE_FACTOR = PLAY_AREA_FADE_INTERVAL / PLAY_AREA_FADE_DURATION,
         PLAY_AREA_BOX_ALPHA = 1.0,
         PLAY_AREA_SENSOR_ALPHA = 0.8;
 
@@ -198,27 +196,11 @@
     }
 
     function fadeOut() {
-        var i, length;
-
-        fadeFactor = fadeFactor - PLAY_AREA_FADE_OUT_FACTOR;
-        if (fadeFactor > 0) {
-            Overlays.editOverlay(playAreaOverlay, { alpha: fadeFactor * PLAY_AREA_BOX_ALPHA });
-            var sensorAlpha = fadeFactor * PLAY_AREA_SENSOR_ALPHA;
-            for (i = 0, length = playAreaSensorPositionOverlays.length; i < length; i++) {
-                Overlays.editOverlay(playAreaSensorPositionOverlays[i], { alpha: sensorAlpha });
-            }
-            fadeTimer = Script.setTimeout(fadeOut, PLAY_AREA_FADE_INTERVAL);
-        } else {
-            setPlayAreaVisible(false);
-        }
-    }
-
-    function fadeToOK() {
         var color,
             hsv,
             i, length;
 
-        fadeFactor = fadeFactor - PLAY_AREA_FADE_OK_FACTOR;
+        fadeFactor = fadeFactor - PLAY_AREA_FADE_FACTOR;
         if (fadeFactor > 0) {
             color = {
                 red: fadeFactor * COLORS_TELEPORT_CAN_TELEPORT_WARNING.red
@@ -231,14 +213,21 @@
             hsv = rgbToHSV(color);
             hsv.s = Math.abs((1 - 2 * (1 - fadeFactor)) * hsvColorsTeleportCanTeleportWarning.s);
             color = hsvToRGB(hsv);
-            Overlays.editOverlay(playAreaOverlay, { color: color });
+
+            Overlays.editOverlay(playAreaOverlay, {
+                color: color,
+                alpha: fadeFactor * PLAY_AREA_BOX_ALPHA
+            });
+            var sensorAlpha = fadeFactor * PLAY_AREA_SENSOR_ALPHA;
             for (i = 0, length = playAreaSensorPositionOverlays.length; i < length; i++) {
-                Overlays.editOverlay(playAreaSensorPositionOverlays[i], { color: color });
+                Overlays.editOverlay(playAreaSensorPositionOverlays[i], {
+                    color: color,
+                    alpha: sensorAlpha
+                });
             }
-            fadeTimer = Script.setTimeout(fadeToOK, PLAY_AREA_FADE_INTERVAL);
+            fadeTimer = Script.setTimeout(fadeOut, PLAY_AREA_FADE_INTERVAL);
         } else {
-            fadeFactor = 1.0;
-            fadeOut();
+            setPlayAreaVisible(false);
         }
     }
 
@@ -251,7 +240,7 @@
 
     function fadePlayArea() {
         fadeFactor = 1.0;
-        fadeToOK();
+        fadeOut();
     }
 
     function displayPlayArea(display) {
