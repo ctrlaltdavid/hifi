@@ -765,3 +765,24 @@ QString OpenVrDisplayPlugin::getPreferredAudioOutDevice() const {
     return device;
 }
 
+QRectF OpenVrDisplayPlugin::getPlayAreaRect() {
+    auto chaperone = vr::VRChaperone();
+    if (!chaperone) {
+        qWarning() << "No chaperone";
+        return QRectF();
+    }
+
+    if (chaperone->GetCalibrationState() >= vr::ChaperoneCalibrationState_Error) {
+        qWarning() << "Chaperone status =" << chaperone->GetCalibrationState();
+        return QRectF();
+    }
+
+    float width;
+    float depth;
+    if (!chaperone->GetPlayAreaSize(&width, &depth)) {
+        qWarning() << "Chaperone dimensions not obtained";
+        return QRectF();
+    }
+
+    return QRectF(-width / 2.0f, -depth / 2.0f, width, depth);
+}
