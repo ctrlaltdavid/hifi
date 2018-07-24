@@ -777,12 +777,26 @@ QRectF OpenVrDisplayPlugin::getPlayAreaRect() {
         return QRectF();
     }
 
-    float width;
-    float depth;
-    if (!chaperone->GetPlayAreaSize(&width, &depth)) {
-        qWarning() << "Chaperone dimensions not obtained";
+    vr::HmdQuad_t rect;
+    if (!chaperone->GetPlayAreaRect(&rect)) {
+        qWarning() << "Chaperone rect not obtained";
         return QRectF();
     }
 
-    return QRectF(-width / 2.0f, -depth / 2.0f, width, depth);
+    auto minXZ = glm::vec3();
+    auto maxXZ = glm::vec3();
+    minXZ = toGlm(rect.vCorners[0]);
+    maxXZ = minXZ;
+    for (int i = 1; i < 4; i++) {
+        auto point = toGlm(rect.vCorners[i]);
+        minXZ.x = std::min(minXZ.x, point.x);
+        minXZ.z = std::min(minXZ.z, point.z);
+        maxXZ.x = std::max(maxXZ.x, point.x);
+        maxXZ.z = std::max(maxXZ.z, point.z);
+    }
+
+    glm::vec2 center = glm::vec2((minXZ.x + maxXZ.x) / 2, (minXZ.z + maxXZ.z) / 2);
+    glm::vec2 dimensions = glm::vec2(maxXZ.x - minXZ.x, maxXZ.z - minXZ.z);
+
+    return QRectF(center.x, center.y, dimensions.x, dimensions.y);
 }
