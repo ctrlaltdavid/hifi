@@ -783,12 +783,10 @@ QRectF OpenVrDisplayPlugin::getPlayAreaRect() {
         return QRectF();
     }
 
-    auto minXZ = glm::vec3();
-    auto maxXZ = glm::vec3();
-    minXZ = toGlm(rect.vCorners[0]);
-    maxXZ = minXZ;
+    auto minXZ = transformVectorFast(_sensorResetMat, toGlm(rect.vCorners[0]));
+    auto maxXZ = minXZ;
     for (int i = 1; i < 4; i++) {
-        auto point = toGlm(rect.vCorners[i]);
+        auto point = transformVectorFast(_sensorResetMat, toGlm(rect.vCorners[i]));
         minXZ.x = std::min(minXZ.x, point.x);
         minXZ.z = std::min(minXZ.z, point.z);
         maxXZ.x = std::max(maxXZ.x, point.x);
