@@ -50,6 +50,10 @@ public:
     virtual void setRenderState(const std::string& state) = 0;
     virtual void editRenderState(const std::string& state, const QVariant& startProps, const QVariant& pathProps, const QVariant& endProps) = 0;
     
+    virtual QVector<QUuid> getOverlayIDs() = 0;
+    virtual QUuid getStartOverlayID(const QString& state) = 0;
+    virtual QUuid getEndOverlayID(const QString& state) = 0;
+
     virtual void setPrecisionPicking(bool precisionPicking);
     virtual void setIgnoreItems(const QVector<QUuid>& ignoreItems) const;
     virtual void setIncludeItems(const QVector<QUuid>& includeItems) const;

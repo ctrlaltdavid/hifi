@@ -128,6 +128,20 @@ Script.include("/~/system/libraries/controllers.js");
             return otherModule;
         };
 
+        this.teleporterSelectionName = "teleporterSelection" + hand.toString();
+        this.TELEPORTER_SELECTION_STYLE = {
+            outlineUnoccludedColor: { red: 0, green: 0, blue: 0 },
+            outlineUnoccludedAlpha: 0,
+            outlineOccludedColor: { red: 0, green: 0, blue: 0 },
+            outlineOccludedAlpha: 0,
+            fillUnoccludedColor: { red: 0, green: 0, blue: 0 },
+            fillUnoccludedAlpha: 0,
+            fillOccludedColor: { red: 0, green: 0, blue: 255 },
+            fillOccludedAlpha: 0.84,
+            outlineWidth: 0,
+            isOutlineSmooth: false
+        };
+
         this.teleportParabolaHandVisible = Pointers.createPointer(PickType.Parabola, {
             joint: (_this.hand === RIGHT_HAND) ? "_CAMERA_RELATIVE_CONTROLLER_RIGHTHAND" : "_CAMERA_RELATIVE_CONTROLLER_LEFTHAND",
             dirOffset: { x: 0, y: 1, z: 0.1 },
@@ -183,7 +197,19 @@ Script.include("/~/system/libraries/controllers.js");
             maxDistance: 8.0
         });
 
-        this.cleanup = function() {
+        this.addToSelectedItemsList = function (overlays) {
+            for (var i = 0, length = overlays.length; i < length; i++) {
+                Selection.addToSelectedItemsList(this.teleporterSelectionName, "overlay", overlays[i]);
+            }
+        };
+
+        this.addToSelectedItemsList(Pointers.getOverlayIDs(this.teleportParabolaHandVisible));
+        this.addToSelectedItemsList(Pointers.getOverlayIDs(this.teleportParabolaHandInvisible));
+        this.addToSelectedItemsList(Pointers.getOverlayIDs(this.teleportParabolaHeadVisible));
+        this.addToSelectedItemsList(Pointers.getOverlayIDs(this.teleportParabolaHeadInvisible));
+
+        this.cleanup = function () {
+            Selection.removeListFromMap(this.teleporterSelectionName);
             Pointers.removePointer(this.teleportParabolaHandVisible);
             Pointers.removePointer(this.teleportParabolaHandInvisible);
             Pointers.removePointer(this.teleportParabolaHeadVisible);
@@ -294,6 +320,7 @@ Script.include("/~/system/libraries/controllers.js");
         };
 
         this.disableLasers = function() {
+            Selection.disableListHighlight(this.teleporterSelectionName);
             Pointers.disablePointer(_this.teleportParabolaHandVisible);
             Pointers.disablePointer(_this.teleportParabolaHandInvisible);
             Pointers.disablePointer(_this.teleportParabolaHeadVisible);
@@ -301,6 +328,11 @@ Script.include("/~/system/libraries/controllers.js");
         };
 
         this.setTeleportState = function(mode, visibleState, invisibleState) {
+            if (visibleState === "teleport") {
+                Selection.enableListHighlight(this.teleporterSelectionName, this.TELEPORTER_SELECTION_STYLE);
+            } else {
+                Selection.disableListHighlight(this.teleporterSelectionName);
+            }
             if (mode === 'head') {
                 Pointers.setRenderState(_this.teleportParabolaHeadVisible, visibleState);
                 Pointers.setRenderState(_this.teleportParabolaHeadInvisible, invisibleState);
