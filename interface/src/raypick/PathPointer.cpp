@@ -368,15 +368,17 @@ QVector<QUuid> PathPointer::getOverlayIDs() {
 }
 
 QUuid PathPointer::getStartOverlayID(const QString& state) {
-    if (_renderStates.find(_currentRenderState) != _renderStates.end()) {
-        return _renderStates[_currentRenderState]->getStartID();
+    auto states = _renderStates.find(state.toStdString());
+    if (states != _renderStates.end()) {
+        return states->second->getStartID();
     }
     return QUuid();
 }
 
 QUuid PathPointer::getEndOverlayID(const QString& state) {
-    if (_renderStates.find(_currentRenderState) != _renderStates.end()) {
-        return _renderStates[_currentRenderState]->getEndID();
+    auto states = _renderStates.find(state.toStdString());
+    if (states != _renderStates.end()) {
+        return states->second->getEndID();
     }
     return QUuid();
 }
