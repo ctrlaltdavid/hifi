@@ -18,7 +18,7 @@
         LEFT = 0,
         RIGHT = 1,
 
-        ORIGIN_OFFSET = { x: 0, y: 0.1, z: 0 }, // Adjust elevation of overlays.
+        ORIGIN_OFFSET = { x: 0, y: 0, z: 0 }, // Adjust elevation of overlays relative to camera elevation.
         ORIGIN_ORIENTATION = Quat.fromVec3Degrees({x: 0, y: 180, z: 0 }),
         BACKGROUND_OVERLAY_MODEL = Script.resolvePath("./assets/models/prototype1_2BackgroundOverlayV2.fbx"),
         BACKGROUND_OVERLAY_DIMENSIONS_RAW = { x: 18.8120, y: 7.0241, z: 37.6240 },
@@ -98,10 +98,12 @@
     }
 
     function positionOverlays() {
-        // Position and orient relative to sensors.
-        var sensorToWorldMatrix = MyAvatar.sensorToWorldMatrix;
+        // Position and orient relative to sensors; elevation relative to camera.
+        var sensorToWorldMatrix = MyAvatar.sensorToWorldMatrix,
+            position = Mat4.extractTranslation(sensorToWorldMatrix);
+        position.y = Camera.position.y;
         Overlays.editOverlay(originOverlay, {
-            position: Vec3.sum(Mat4.extractTranslation(sensorToWorldMatrix), originOffset),
+            position: Vec3.sum(position, originOffset),
             orientation: Quat.multiply(ORIGIN_ORIENTATION, Mat4.extractRotation(sensorToWorldMatrix))
         });
         Overlays.editOverlay(backgroundOverlay, {
