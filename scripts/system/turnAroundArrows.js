@@ -19,7 +19,7 @@
         RIGHT = 1,
 
         ORIGIN_OFFSET = { x: 0, y: 0, z: 0 }, // Adjust elevation of overlays relative to camera elevation.
-        ORIGIN_ORIENTATION = Quat.fromVec3Degrees({x: 0, y: 180, z: 0 }),
+        ORIGIN_ORIENTATION = Quat.fromVec3Degrees({ x: 0, y: 180, z: 0 }),
         BACKGROUND_OVERLAY_MODEL = Script.resolvePath("./assets/models/prototype1_2BackgroundOverlayV2.fbx"),
         BACKGROUND_OVERLAY_DIMENSIONS_RAW = { x: 18.8120, y: 7.0241, z: 37.6240 },
         BACKGROUND_OVERLAY_SCALE = 0.3,
@@ -49,6 +49,7 @@
         animationStart = 0,
         UPDATE_TIMEOUT = 10,
         updateTimer = null,
+        STEP_YAW_ACTION_ID = Controller.findAction("StepYaw"),
 
         avatarScale = MyAvatar.scale,
         originOffset,
@@ -176,15 +177,27 @@
         }
     }
 
+    function onActionEvent(id, value) {
+        if (id === STEP_YAW_ACTION_ID && value !== 0) {
+            // Restart animation.
+            Script.clearTimeout(updateTimer);
+            updateTimer = null;
+            animationStart = 0;
+            update();
+        }
+    }
+
     function startRunning() {
         createOverlays();
         MyAvatar.scaleChanged.connect(onMyAvatarScaleChanged);
         scaleOverlays();
         update(); // Kick off update loop.
+        Controller.actionEvent.connect(onActionEvent);
         showBackground(); // Make visible after initially positioned.
     }
 
     function stopRunning() {
+        Controller.actionEvent.disconnect(onActionEvent);
         MyAvatar.scaleChanged.disconnect(onMyAvatarScaleChanged);
         Script.clearTimeout(updateTimer);
         updateTimer = null;
