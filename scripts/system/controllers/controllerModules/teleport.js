@@ -21,7 +21,7 @@ Script.include("/~/system/libraries/controllers.js");
 
 (function() { // BEGIN LOCAL_SCOPE
 
-    var TARGET_MODEL_URL = Script.resolvePath("../../assets/models/teleport-destination.fbx");
+    var TARGET_MODEL_URL = Script.resolvePath("../../assets/models/teleportationSpotBasev6.fbx");
     var SEAT_MODEL_URL = Script.resolvePath("../../assets/models/teleport-seat.fbx");
 
     var TARGET_MODEL_DIMENSIONS = {
@@ -59,17 +59,17 @@ Script.include("/~/system/libraries/controllers.js");
 
     var cancelPath = {
         color: COLORS_TELEPORT_CANCEL,
-        alpha: 1,
+        alpha: 0.3,
         width: 0.025
     };
     var teleportPath = {
         color: COLORS_TELEPORT_CAN_TELEPORT,
-        alpha: 1,
+        alpha: 0.7,
         width: 0.025
     };
     var seatPath = {
         color: COLORS_TELEPORT_SEAT,
-        alpha: 1,
+        alpha: 0.7,
         width: 0.025
     };
     var teleportEnd = {
