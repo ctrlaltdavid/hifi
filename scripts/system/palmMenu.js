@@ -1,5 +1,5 @@
 //
-//  miniTablet.js
+//  palmMenu.js
 //
 //  Created by David Rowe on 9 Aug 2018.
 //  Copyright 2018 High Fidelity, Inc.
@@ -298,7 +298,7 @@
             HOVER_LEAVE_DEBOUNCE_DELAY = 50,
             hoverLeaveTimers = [],
 
-            TABLET_EXPAND_HANDLES = [ // Normalized coordinates in range [-0.5, 0.5] about center of mini tablet.
+            TABLET_EXPAND_HANDLES = [ // Normalized coordinates in range [-0.5, 0.5] about center of tablet model.
                 { x: 0.5, y: -0.65, z: 0 },
                 { x: -0.5, y: -0.65, z: 0 }
             ],
@@ -323,7 +323,7 @@
             buttonClickedCallback;
 
         function updateMiniTabletID() {
-            // Send mini-tablet overlay ID to controllerDispatcher so that it can use a smaller near grab distance.
+            // Send tablet overlay ID to controllerDispatcher so that it can use a smaller near grab distance.
             Messages.sendLocalMessage("Hifi-MiniTablet-ID", overlays[TABLET_MODEL]);
         }
 
