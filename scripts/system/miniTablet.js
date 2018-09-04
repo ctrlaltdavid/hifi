@@ -14,47 +14,10 @@
 
     "use strict";
 
-    Script.include("./libraries/utils.js");
+    Script.include("./libraries/utils.js");  // TODO: Is this still needed?
 
-    var // Base overlay
-        proxyOverlay = null,
-        PROXY_MODEL = Script.resolvePath("./assets/models/tinyTablet.fbx"),
-        PROXY_DIMENSIONS = { x: 0.0637, y: 0.0965, z: 0.0045 }, // Proportional to tablet proper.
-        PROXY_POSITIONS = [
-            {
-                x: -0.03, // Distance across hand.
-                y: 0.08, // Distance from joint.
-                z: 0.06 // Distance above palm.
-            },
-            {
-                x: 0.03, // Distance across hand.
-                y: 0.08, // Distance from joint.
-                z: 0.06 // Distance above palm.
-            }
-        ],
-        PROXY_ROTATIONS = [
-            Quat.fromVec3Degrees({ x: 0, y: 180 - 40, z: 90 }),
-            Quat.fromVec3Degrees({ x: 0, y: 180 + 40, z: -90 }),
-        ],
-
-        // UI overlay.
-        proxyUIOverlay = null,
-        PROXY_UI_HTML = Script.resolvePath("./html/miniTablet.html"),
-        PROXY_UI_DIMENSIONS = { x: 0.059, y: 0.0865 },
-        PROXY_UI_WIDTH_PIXELS = 150,
-        METERS_TO_INCHES = 39.3701,
-        PROXY_UI_DPI = PROXY_UI_WIDTH_PIXELS / (PROXY_UI_DIMENSIONS.x * METERS_TO_INCHES),
-        PROXY_UI_OFFSET = 0.001, // Above model surface.
-        PROXY_UI_LOCAL_POSITION = { x: 0.0002, y: 0.0024, z: -(PROXY_DIMENSIONS.z / 2 + PROXY_UI_OFFSET) },
-        PROXY_UI_LOCAL_ROTATION = Quat.fromVec3Degrees({ x: 0, y: 180, z: 0 }),
-        proxyUIOverlayEnabled = false,
-        PROXY_UI_OVERLAY_ENABLED_DELAY = 500,
-        proxyOverlayObject = null,
-
-        MUTE_ON_ICON = Script.resourcesPath() + "icons/tablet-icons/mic-mute-a.svg",
-        MUTE_OFF_ICON = Script.resourcesPath() + "icons/tablet-icons/mic-unmute-i.svg",
-        BUBBLE_ON_ICON = Script.resourcesPath() + "icons/tablet-icons/bubble-a.svg",
-        BUBBLE_OFF_ICON = Script.resourcesPath() + "icons/tablet-icons/bubble-i.svg",
+    var UI,
+        ui = null,
 
         // State machine
         PROXY_DISABLED = 0,
@@ -74,35 +37,11 @@
         PROXY_SCALE_TIMEOUT = 20,
         proxyScaleTimer = null,
         proxyScaleStart,
-        PROXY_EXPAND_HANDLES = [ // Normalized coordinates in range [-0.5, 0.5] about center of mini tablet.
-            { x: 0.5, y: -0.65, z: 0 },
-            { x: -0.5, y: -0.65, z: 0 }
-        ],
-        PROXY_EXPAND_DELTA_ROTATION = Quat.fromVec3Degrees({ x: -5, y: 0, z: 0 }),
-        PROXY_EXPAND_HANDLES_OTHER = [ // Different handles when expanding after being grabbed by other hand,
-            { x: 0.5, y: -0.4, z: 0 },
-            { x: -0.5, y: -0.4, z: 0 }
-        ],
-        PROXY_EXPAND_DELTA_ROTATION_OTHER = Quat.IDENTITY,
-        proxyExpandHand,
-        proxyExpandHandles = PROXY_EXPAND_HANDLES,
-        proxyExpandDeltaRotation = PROXY_EXPAND_HANDLES_OTHER,
-        proxyExpandLocalPosition,
-        proxyExpandLocalRotation = Quat.IDENTITY,
         PROXY_EXPAND_DURATION = 250,
         PROXY_EXPAND_TIMEOUT = 20,
         proxyExpandTimer = null,
         proxyExpandStart,
-        proxyInitialWidth,
-        proxyTargetWidth,
-        proxyTargetLocalRotation,
-
-        // EventBridge
-        READY_MESSAGE = "ready", // Engine <== Dialog
-        HOVER_MESSAGE = "hover", // Engine <== Dialog
-        MUTE_MESSAGE = "mute", // Engine <=> Dialog
-        BUBBLE_MESSAGE = "bubble", // Engine <=> Dialog
-        EXPAND_MESSAGE = "expand", // Engine <== Dialog
+        isGoto,
 
         // Events
         MIN_HAND_CAMERA_ANGLE = 30,
@@ -111,8 +50,9 @@
         updateTimer = null,
         UPDATE_INTERVAL = 300,
         HIFI_OBJECT_MANIPULATION_CHANNEL = "Hifi-Object-Manipulation",
-        avatarScale = 1,
+        avatarScale = MyAvatar.scale,
 
+        // TODO: Move into UI.
         // Sounds
         HOVER_SOUND = "./assets/sounds/button-hover.wav",
         HOVER_VOLUME = 0.5,
@@ -183,201 +123,594 @@
 
     // #endregion
 
-    // #region Communications ==================================================================================================
-
-    function updateMiniTabletID() {
-        // Send mini-tablet overlay ID to controllerDispatcher so that it can use a smaller near grab distance.
-        Messages.sendLocalMessage("Hifi-MiniTablet-ID", proxyOverlay);
-        // Send mini-tablet UI overlay ID to stylusInput so that it styluses can be used on it.
-        Messages.sendLocalMessage("Hifi-MiniTablet-UI-ID", proxyUIOverlay);
-    }
-
-    function updateMutedStatus() {
-        var isMuted = Audio.muted;
-        proxyOverlayObject.emitScriptEvent(JSON.stringify({
-            type: MUTE_MESSAGE,
-            on: isMuted,
-            icon: isMuted ? MUTE_ON_ICON : MUTE_OFF_ICON
-        }));
-    }
-
-    function updateBubbleStatus() {
-        var isBubbleOn = Users.getIgnoreRadiusEnabled();
-        proxyOverlayObject.emitScriptEvent(JSON.stringify({
-            type: BUBBLE_MESSAGE,
-            on: isBubbleOn,
-            icon: isBubbleOn ? BUBBLE_ON_ICON : BUBBLE_OFF_ICON
-        }));
-    }
-
-    function onWebEventReceived(data) {
-        var message;
-
-        try {
-            message = JSON.parse(data);
-        } catch (e) {
-            console.error("EventBridge message error");
-            return;
-        }
-
-        switch (message.type) {
-            case READY_MESSAGE:
-                // Send initial button statuses.
-                updateMutedStatus();
-                updateBubbleStatus();
-                break;
-            case HOVER_MESSAGE:
-                // Audio feedback.
-                playSound(hoverSound, HOVER_VOLUME);
-                break;
-            case MUTE_MESSAGE:
-                // Toggle mute.
-                playSound(clickSound, CLICK_VOLUME);
-                Audio.muted = !Audio.muted;
-                break;
-            case BUBBLE_MESSAGE:
-                // Toggle bubble.
-                playSound(clickSound, CLICK_VOLUME);
-                Users.toggleIgnoreRadius();
-                break;
-            case EXPAND_MESSAGE:
-                // Expand tablet;
-                playSound(clickSound, CLICK_VOLUME);
-                setState(PROXY_EXPANDING, proxyHand);
-                break;
-        }
-    }
-
-    // #endregion
-
     // #region UI ==============================================================================================================
 
-    function createUI() {
-        proxyOverlay = Overlays.addOverlay("model", {
-            url: PROXY_MODEL,
-            dimensions: Vec3.multiply(avatarScale, PROXY_DIMENSIONS),
-            solid: true,
-            grabbable: true,
-            showKeyboardFocusHighlight: false,
-            displayInFront: true,
-            visible: false
-        });
-        proxyUIOverlay = Overlays.addOverlay("web3d", {
-            url: PROXY_UI_HTML,
-            parentID: proxyOverlay,
-            localPosition: Vec3.multiply(avatarScale, PROXY_UI_LOCAL_POSITION),
-            localRotation: PROXY_UI_LOCAL_ROTATION,
-            dimensions: Vec3.multiply(avatarScale, PROXY_UI_DIMENSIONS),
-            dpi: PROXY_UI_DPI / avatarScale,
-            alpha: 0, // Hide overlay while its content is being created.
-            grabbable: false,
-            showKeyboardFocusHighlight: false,
-            displayInFront: true,
-            visible: false
-        });
+    UI = function () {
 
-        proxyUIOverlayEnabled = false; // This and alpha = 0 hides overlay while its content is being created.
-
-        proxyOverlayObject = Overlays.getOverlayObject(proxyUIOverlay);
-        proxyOverlayObject.webEventReceived.connect(onWebEventReceived);
-
-        // updateMiniTabletID(); Other scripts relying on this may not be ready yet so do this in showUI().
-    }
-
-    function showUI() {
-        var initialScale = 0.01; // Start very small.
-
-        Overlays.editOverlay(proxyOverlay, {
-            parentID: MyAvatar.SELF_ID,
-            parentJointIndex: handJointIndex(proxyHand),
-            localPosition: Vec3.multiply(avatarScale, PROXY_POSITIONS[proxyHand]),
-            localRotation: PROXY_ROTATIONS[proxyHand],
-            dimensions: Vec3.multiply(initialScale, PROXY_DIMENSIONS),
-            visible: true
-        });
-        Overlays.editOverlay(proxyUIOverlay, {
-            localPosition: Vec3.multiply(avatarScale, PROXY_UI_LOCAL_POSITION),
-            localRotation: PROXY_UI_LOCAL_ROTATION,
-            dimensions: Vec3.multiply(initialScale, PROXY_UI_DIMENSIONS),
-            dpi: PROXY_UI_DPI / initialScale,
-            visible: true
-        });
-
-        updateMiniTabletID();
-
-        if (!proxyUIOverlayEnabled) {
-            // Overlay content is created the first time it is visible to the user. The initial creation displays artefacts.
-            // Delay showing UI overlay until after giving it time for its content to be created.
-            Script.setTimeout(function () {
-                Overlays.editOverlay(proxyUIOverlay, { alpha: 1.0 });
-            }, PROXY_UI_OVERLAY_ENABLED_DELAY);
+        if (!(this instanceof UI)) {
+            return new UI();
         }
-    }
 
-    function sizeUI(scaleFactor) {
-        // Scale UI in place.
-        Overlays.editOverlay(proxyOverlay, {
-            dimensions: Vec3.multiply(scaleFactor, PROXY_DIMENSIONS)
-        });
-        Overlays.editOverlay(proxyUIOverlay, {
-            localPosition: Vec3.multiply(scaleFactor, PROXY_UI_LOCAL_POSITION),
-            dimensions: Vec3.multiply(scaleFactor, PROXY_UI_DIMENSIONS),
-            dpi: PROXY_UI_DPI / scaleFactor
-        });
-    }
+        var BUTTON_I_NORMAL = Script.resolvePath("./assets/images/pm-button-i-normal.svg"),
+            BUTTON_I_HOVER = Script.resolvePath("./assets/images/pm-button-i-hover.svg"),
+            BUTTON_A_NORMAL = Script.resolvePath("./assets/images/pm-button-a-normal.svg"),
+            BUTTON_A_HOVER = Script.resolvePath("./assets/images/pm-button-a-hover.svg"),
 
-    function sizeUIAboutHandles(scaleFactor) {
-        // Scale UI and move per handles.
-        var tabletScaleFactor = avatarScale * (1 + scaleFactor * (proxyTargetWidth - proxyInitialWidth) / proxyInitialWidth);
-        var dimensions = Vec3.multiply(tabletScaleFactor, PROXY_DIMENSIONS);
-        var localRotation = Quat.mix(proxyExpandLocalRotation, proxyTargetLocalRotation, scaleFactor);
-        var localPosition =
-            Vec3.sum(proxyExpandLocalPosition,
-                Vec3.multiplyQbyV(proxyExpandLocalRotation,
-                    Vec3.multiply(-tabletScaleFactor,
-                        Vec3.multiplyVbyV(proxyExpandHandles[proxyExpandHand], PROXY_DIMENSIONS)))
-            );
-        localPosition = Vec3.sum(localPosition,
-            Vec3.multiplyQbyV(proxyExpandLocalRotation, { x: 0, y: 0.5 * -dimensions.y, z: 0 }));
-        localPosition = Vec3.sum(localPosition,
-            Vec3.multiplyQbyV(localRotation, { x: 0, y: 0.5 * dimensions.y, z: 0 }));
-        Overlays.editOverlay(proxyOverlay, {
-            localPosition: localPosition,
-            localRotation: localRotation,
-            dimensions: dimensions
-        });
-        Overlays.editOverlay(proxyUIOverlay, {
-            localPosition: Vec3.multiply(tabletScaleFactor, PROXY_UI_LOCAL_POSITION),
-            dimensions: Vec3.multiply(tabletScaleFactor, PROXY_UI_DIMENSIONS),
-            dpi: PROXY_UI_DPI / tabletScaleFactor
-        });
-    }
+            MUTE_OFF_ICON = Script.resourcesPath() + "icons/tablet-icons/mic-unmute-i.svg",
+            MUTE_ON_ICON = Script.resourcesPath() + "icons/tablet-icons/mic-mute-a.svg",
+            BUBBLE_OFF_ICON = Script.resourcesPath() + "icons/tablet-icons/bubble-i.svg",
+            BUBBLE_ON_ICON = Script.resourcesPath() + "icons/tablet-icons/bubble-a.svg",
+            GOTO_ENABLED_ICON = Script.resourcesPath() + "icons/tablet-icons/goto-i.svg",
+            EXPAND_ENABLED_ICON = Script.resourcesPath() + "icons/tablet-icons/menu-i.svg",
 
-    function hideUI() {
-        Overlays.editOverlay(proxyOverlay, {
-            parentID: Uuid.NULL, // Release hold so that hand can grab tablet proper.
-            visible: false
-        });
-        Overlays.editOverlay(proxyUIOverlay, {
-            visible: false
-        });
-    }
+            TABLET_MODEL_URL = Script.resolvePath("./assets/models/tinyTablet.fbx"),
 
-    function destroyUI() {
-        if (proxyOverlayObject) {
-            proxyOverlayObject.webEventReceived.disconnect(onWebEventReceived);
-            Overlays.deleteOverlay(proxyUIOverlay);
-            Overlays.deleteOverlay(proxyOverlay);
-            proxyOverlayObject = null;
-            proxyUIOverlay = null;
-            proxyOverlay = null;
+            ICON_DELTA_Z = 0.001, // Z-spacing between overlays sufficient to render separated.
+
+            ORIGIN = 0, // Root overlay that other overlays descend from.
+            MUTE_BUTTON = 1,
+            BUBBLE_BUTTON = 2,
+            GOTO_BUTTON = 3,
+            EXPAND_BUTTON = 4,
+            MUTE_ICON = 5,
+            BUBBLE_ICON = 6,
+            GOTO_ICON = 7,
+            EXPAND_ICON = 8,
+            TABLET_MODEL = 9,
+            OVERLAY_PROPERTIES = [
+                { // Origin
+                    type: "sphere",
+                    dimensions: { x: 0.01, y: 0.01, z: 0.01 },
+                    visible: false
+                },
+
+                { // Mute button
+                    type: "image3d",
+                    url: BUTTON_I_NORMAL,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.03, y: 0.03 },
+                    localPosition: { x: 0, y: 0.028, z: 0 },
+                    localRotation: Quat.IDENTITY,
+                    solid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+                { // Bubble button
+                    type: "image3d",
+                    url: BUTTON_I_NORMAL,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.03, y: 0.03 },
+                    localPosition: { x: -0.028, y: 0, z: 0 },
+                    localRotation: Quat.IDENTITY,
+                    isSolid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+                { // Goto button
+                    type: "image3d",
+                    url: BUTTON_I_NORMAL,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.03, y: 0.03 },
+                    localPosition: { x: 0, y: -0.028, z: 0 },
+                    localRotation: Quat.IDENTITY,
+                    isSolid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+                { // Expand button
+                    type: "image3d",
+                    url: BUTTON_I_NORMAL,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.03, y: 0.03 },
+                    localPosition: { x: 0.035, y: 0, z: 0 },
+                    localRotation: Quat.IDENTITY,
+                    isSolid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+
+                { // Mute icon
+                    type: "image3d",
+                    url: MUTE_OFF_ICON,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.016, y: 0.016 },
+                    localPosition: { x: 0, y: 0.028, z: ICON_DELTA_Z },
+                    localRotation: Quat.IDENTITY,
+                    solid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+                { // Bubble icon
+                    type: "image3d",
+                    url: BUBBLE_OFF_ICON,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.016, y: 0.016 },
+                    localPosition: { x: -0.028, y: 0, z: ICON_DELTA_Z },
+                    localRotation: Quat.IDENTITY,
+                    solid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+                { // Goto icon
+                    type: "image3d",
+                    url: GOTO_ENABLED_ICON,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.016, y: 0.016 },
+                    localPosition: { x: 0, y: -0.028, z: ICON_DELTA_Z },
+                    localRotation: Quat.IDENTITY,
+                    solid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+                { // Expand icon
+                    type: "image3d",
+                    url: EXPAND_ENABLED_ICON,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.016, y: 0.016 },
+                    localPosition: { x: 0.035, y: 0, z: ICON_DELTA_Z },
+                    localRotation: Quat.IDENTITY,
+                    solid: true,
+                    alpha: 1,
+                    emissive: true,
+                    visible: false
+                },
+
+                { // Tablet model
+                    type: "model",
+                    url: TABLET_MODEL_URL,
+                    parent: ORIGIN,
+                    dimensions: { x: 0.032, y: 0.0485, z: 0.0023 },// Proportional to tablet proper.
+                    localPosition: { x: 0.035, y: 0, z: -0.0023 / 2 -ICON_DELTA_Z },
+                    localRotation: Quat.fromVec3Degrees({ x: 0, y: 180, z: 0 }),
+                    solid: true,
+                    grabbable: true,
+                    showKeyboardFocusHighlight: false,
+                    visible: false
+                }
+            ],
+            SWAP_BUTTONS = [BUBBLE_BUTTON, BUBBLE_ICON, EXPAND_BUTTON, EXPAND_ICON, TABLET_MODEL],
+            overlays = [],
+
+            UI_POSITIONS = [
+                {
+                    x: -0.01, // Distance across hand.
+                    y: 0.08, // Distance from joint.
+                    z: 0.06 // Distance above palm.
+                },
+                {
+                    x: 0.01, // Distance across hand.
+                    y: 0.08, // Distance from joint.
+                    z: 0.06 // Distance above palm.
+                }
+            ],
+            UI_ROTATIONS = [
+                Quat.fromVec3Degrees({ x: 0, y: -40, z: 90 }),
+                Quat.fromVec3Degrees({ x: 0, y: 40, z: -90 })
+            ],
+
+            HOVER_LEAVE_DEBOUNCE_DELAY = 50,
+            hoverLeaveTimers = [],
+
+            TABLET_EXPAND_HANDLES = [ // Normalized coordinates in range [-0.5, 0.5] about center of mini tablet.
+                { x: 0.5, y: -0.65, z: 0 },
+                { x: -0.5, y: -0.65, z: 0 }
+            ],
+            TABLET_EXPAND_DELTA_ROTATION = Quat.fromVec3Degrees({ x: -5, y: 0, z: 0 }),
+            TABLET_EXPAND_HANDLES_OTHER = [ // Different handles when expanding after being grabbed by other hand,
+                { x: 0.5, y: -0.4, z: 0 },
+                { x: -0.5, y: -0.4, z: 0 }
+            ],
+            TABLET_EXPAND_DELTA_ROTATION_OTHER = Quat.IDENTITY,
+            tabletExpandHand,
+            tabletExpandHandles = TABLET_EXPAND_HANDLES,
+            tabletExpandDeltaRotation = TABLET_EXPAND_HANDLES_OTHER,
+            tabletExpandLocalPosition,
+            tabletExpandLocalRotation = Quat.IDENTITY,
+            tabletExpandInitialWidth,
+            tabletExpandTargetWidth,
+            tabletExpandTargetLocalRotation,
+
+            uiEnabled = false, // UI is disabled when hidden or showing / hiding.
+            uiHand = LEFT_HAND,
+
+            buttonClickedCallback;
+
+        function updateMiniTabletID() {
+            // Send mini-tablet overlay ID to controllerDispatcher so that it can use a smaller near grab distance.
+            Messages.sendLocalMessage("Hifi-MiniTablet-ID", overlays[TABLET_MODEL]);
+        }
+
+        function setIgnoreOverlay(overlayID, ignore) {
+            // Disable hover etc. events on overlay.
+            var HAND_RAYPICK_BLACKLIST_CHANNEL = "Hifi-Hand-RayPick-Blacklist";
+            Messages.sendLocalMessage(HAND_RAYPICK_BLACKLIST_CHANNEL, JSON.stringify({
+                action: ignore ? "add" : "remove",
+                id: overlayID
+            }));
+        }
+
+        function onHoverEnterOverlay(overlayID, event) {
+
+            function maybePlaySound(button) {
+                if (hoverLeaveTimers[button]) {
+                    Script.clearTimeout(hoverLeaveTimers[button]);
+                    hoverLeaveTimers[button] = null;
+                } else {
+                    playSound(hoverSound, HOVER_VOLUME);
+                }
+            }
+
+            function updateOverlay(button, url) {
+                Overlays.editOverlay(overlays[button], {
+                    url: url
+                });
+            }
+
+            switch (overlayID) {
+                case overlays[MUTE_BUTTON]:
+                    maybePlaySound(MUTE_BUTTON);
+                    updateOverlay(MUTE_BUTTON, BUTTON_I_HOVER);
+                    break;
+                case overlays[BUBBLE_BUTTON]:
+                    maybePlaySound(BUBBLE_BUTTON);
+                    updateOverlay(BUBBLE_BUTTON, Users.getIgnoreRadiusEnabled() ? BUTTON_A_HOVER : BUTTON_I_HOVER);
+                    break;
+                case overlays[GOTO_BUTTON]:
+                    maybePlaySound(GOTO_BUTTON);
+                    updateOverlay(GOTO_BUTTON, BUTTON_I_HOVER);
+                    break;
+                case overlays[EXPAND_BUTTON]:
+                    maybePlaySound(EXPAND_BUTTON);
+                    updateOverlay(EXPAND_BUTTON, BUTTON_I_HOVER);
+                    break;
+                default:
+                    // Ignore the many other overlays that may generate this event.
+            }
+        }
+
+        function onHoverLeaveOverlay(overlayID, event) {
+
+            function maybeUpdateOverlay(button, url) {
+                if (hoverLeaveTimers[button]) {
+                    Script.clearTimeout(hoverLeaveTimers[button]);
+                }
+
+                hoverLeaveTimers[button] = Script.setTimeout(function () {
+                    Overlays.editOverlay(overlays[button], {
+                        url: url
+                    });
+                    hoverLeaveTimers[button] = null;
+                }, HOVER_LEAVE_DEBOUNCE_DELAY);
+            }
+
+            switch (overlayID) {
+                case overlays[MUTE_BUTTON]:
+                    maybeUpdateOverlay(MUTE_BUTTON, BUTTON_I_NORMAL);
+                    break;
+                case overlays[BUBBLE_BUTTON]:
+                    maybeUpdateOverlay(BUBBLE_BUTTON, Users.getIgnoreRadiusEnabled() ? BUTTON_A_NORMAL : BUTTON_I_NORMAL);
+                    break;
+                case overlays[GOTO_BUTTON]:
+                    maybeUpdateOverlay(GOTO_BUTTON, BUTTON_I_NORMAL);
+                    break;
+                case overlays[EXPAND_BUTTON]:
+                    maybeUpdateOverlay(EXPAND_BUTTON, BUTTON_I_NORMAL);
+                    break;
+                default:
+                    // Ignore the many other overlays that may generate this event.
+            }
+        }
+
+        function onMouseReleaseOnOverlay(overlayID, event) {
+
+            function maybeClickButton(button) {
+                if (event.type !== "Release" || !event.isPrimaryButton) {
+                    return;
+                }
+
+                if (hoverLeaveTimers[button] === null) { // Laser must still be on button.
+                    playSound(clickSound, CLICK_VOLUME);
+                    buttonClickedCallback(button);
+                }
+            }
+
+            switch (overlayID) {
+                case overlays[MUTE_BUTTON]:
+                    maybeClickButton(MUTE_BUTTON);
+                    break;
+                case overlays[BUBBLE_BUTTON]:
+                    maybeClickButton(BUBBLE_BUTTON);
+                    break;
+                case overlays[GOTO_BUTTON]:
+                    maybeClickButton(GOTO_BUTTON);
+                    break;
+                case overlays[EXPAND_BUTTON]:
+                    maybeClickButton(EXPAND_BUTTON);
+                    break;
+                default:
+                    // Ignore the many other overlays that may generate this event.
+            }
+        }
+
+        function show(hand) {
+            var i, length;
+
+            uiHand = hand;
+
+            // Origin.
+            Overlays.editOverlay(overlays[ORIGIN], {
+                parentID: MyAvatar.SELF_ID,
+                parentJointIndex: handJointIndex(uiHand),
+                localPosition: Vec3.multiply(avatarScale, UI_POSITIONS[uiHand]),
+                localRotation: UI_ROTATIONS[uiHand]
+            });
+
+            // Other overlays.
+            for (i = 1, length = overlays.length; i < length; i++) {
+                Overlays.editOverlay(overlays[i], {
+                    localRotation: OVERLAY_PROPERTIES[i].localRotation,
+                    dimensions: { x: 0.0001, y: 0.0001, z: 0.0001 }, // Vec3s are compatible with Vec2s.
+                    visible: true
+                });
+            }
+
+            hoverLeaveTimers[MUTE_BUTTON] = null;
+            hoverLeaveTimers[BUBBLE_BUTTON] = null;
+            hoverLeaveTimers[GOTO_BUTTON] = null;
+            hoverLeaveTimers[EXPAND_BUTTON] = null;
+
             updateMiniTabletID();
         }
-    }
+
+        function scale(scaleFactor) {
+            // Scale UI in place.
+            var properties,
+                isRightHand = uiHand === RIGHT_HAND,
+                SWAP_X = { x: -1, y: 1, z: 1 },
+                swapX,
+                i, length;
+
+            for (i = 1, length = overlays.length; i < length; i++) {
+                properties = OVERLAY_PROPERTIES[i];
+                swapX = (isRightHand && SWAP_BUTTONS.indexOf(i) !== -1) ? SWAP_X : Vec3.ONE; // Swap bubble and tablet buttons?
+                Overlays.editOverlay(overlays[i], {
+                    localPosition: Vec3.multiply(scaleFactor, Vec3.multiplyVbyV(swapX, properties.localPosition)),
+                    dimensions: Vec3.multiply(scaleFactor, properties.dimensions) // Vec3s are compatible with Vec2s.
+                });
+            }
+        }
+
+        function startExpandingTablet(hand) {
+            var properties;
+
+            // Expansion details.
+            tabletExpandHand = hand;
+            if (tabletExpandHand === uiHand) {
+                tabletExpandHandles = TABLET_EXPAND_HANDLES;
+                tabletExpandDeltaRotation = TABLET_EXPAND_DELTA_ROTATION;
+            } else {
+                tabletExpandHandles = TABLET_EXPAND_HANDLES_OTHER;
+                tabletExpandDeltaRotation = TABLET_EXPAND_DELTA_ROTATION_OTHER;
+            }
+
+            // Grabbing details.
+            properties = Overlays.getProperties(overlays[TABLET_MODEL], ["localPosition", "localRotation"]);
+            tabletExpandLocalRotation = properties.localRotation;
+            tabletExpandLocalPosition = Vec3.sum(properties.localPosition,
+                Vec3.multiplyQbyV(tabletExpandLocalRotation,
+                    Vec3.multiplyVbyV(tabletExpandHandles[tabletExpandHand], OVERLAY_PROPERTIES[TABLET_MODEL].dimensions)));
+
+            // Initial and target details.
+            tabletExpandInitialWidth = OVERLAY_PROPERTIES[TABLET_MODEL].dimensions.x; // Unscaled by avatar.
+            tabletExpandTargetWidth = getTabletWidthFromSettings(); // "".
+            tabletExpandTargetLocalRotation = Quat.multiply(tabletExpandLocalRotation, tabletExpandDeltaRotation);
+        }
+
+        function expandTablet(scaleFactor) {
+            // Scale tablet model and move per handles.
+            var tabletScaleFactor,
+                dimensions,
+                localPosition,
+                localRotation;
+
+            tabletScaleFactor = avatarScale
+                * (1 + scaleFactor * (tabletExpandTargetWidth - tabletExpandInitialWidth) / tabletExpandInitialWidth);
+            dimensions = Vec3.multiply(tabletScaleFactor, OVERLAY_PROPERTIES[TABLET_MODEL].dimensions);
+            localRotation = Quat.mix(tabletExpandLocalRotation, tabletExpandTargetLocalRotation, scaleFactor);
+            localPosition =
+                Vec3.sum(tabletExpandLocalPosition,
+                    Vec3.multiplyQbyV(tabletExpandLocalRotation,
+                        Vec3.multiply(-tabletScaleFactor,
+                            Vec3.multiplyVbyV(tabletExpandHandles[tabletExpandHand],
+                                OVERLAY_PROPERTIES[TABLET_MODEL].dimensions)))
+                );
+            localPosition = Vec3.sum(localPosition,
+                Vec3.multiplyQbyV(tabletExpandLocalRotation, { x: 0, y: 0.5 * -dimensions.y, z: 0 }));
+            localPosition = Vec3.sum(localPosition,
+                Vec3.multiplyQbyV(localRotation, { x: 0, y: 0.5 * dimensions.y, z: 0 }));
+
+            Overlays.editOverlay(overlays[TABLET_MODEL], {
+                localPosition: localPosition,
+                localRotation: localRotation,
+                dimensions: dimensions
+            });
+        }
+
+        function getUIPositionAndRotation(hand) {
+            return {
+                position: UI_POSITIONS[hand],
+                rotation: UI_ROTATIONS[hand]
+            };
+        }
+
+        function getTabletProxyID() {
+            return overlays[TABLET_MODEL];
+        }
+
+        function getTabletProxyProperties() {
+            var properties = Overlays.getProperties(overlays[TABLET_MODEL], ["position", "orientation"]);
+            return {
+                position: properties.position,
+                orientation: properties.orientation
+            };
+        }
+
+        function enable() {
+            // Enable hovering and clicking.
+            if (uiEnabled) {
+                return;
+            }
+
+            setIgnoreOverlay(overlays[MUTE_ICON], true);
+            setIgnoreOverlay(overlays[BUBBLE_ICON], true);
+            setIgnoreOverlay(overlays[GOTO_ICON], true);
+            setIgnoreOverlay(overlays[EXPAND_ICON], true);
+            setIgnoreOverlay(overlays[TABLET_MODEL], true);
+
+            Overlays.hoverEnterOverlay.connect(onHoverEnterOverlay);
+            Overlays.hoverLeaveOverlay.connect(onHoverLeaveOverlay);
+            Overlays.mouseReleaseOnOverlay.connect(onMouseReleaseOnOverlay);
+
+            uiEnabled = true;
+        }
+
+        function disable() {
+            // Disable hovering and clicking.
+            if (!uiEnabled) {
+                return;
+            }
+
+            Overlays.hoverEnterOverlay.disconnect(onHoverEnterOverlay);
+            Overlays.hoverLeaveOverlay.disconnect(onHoverLeaveOverlay);
+            Overlays.mouseReleaseOnOverlay.disconnect(onMouseReleaseOnOverlay);
+
+            setIgnoreOverlay(overlays[MUTE_ICON], false);
+            setIgnoreOverlay(overlays[BUBBLE_ICON], false);
+            setIgnoreOverlay(overlays[GOTO_ICON], false);
+            setIgnoreOverlay(overlays[EXPAND_ICON], false);
+            setIgnoreOverlay(overlays[TABLET_MODEL], false);
+
+            uiEnabled = false;
+        }
+
+        function hide() {
+            var i, length;
+            for (i = 0, length = overlays.length; i < length; i++) {
+                Overlays.editOverlay(overlays[i], {
+                    visible: false
+                });
+            }
+        }
+
+        function setButtonActive(button, isActive) {
+            switch (button) {
+                case MUTE_BUTTON:
+                    Overlays.editOverlay(overlays[MUTE_ICON], {
+                        url: isActive ? MUTE_ON_ICON : MUTE_OFF_ICON
+                    });
+                    break;
+                case BUBBLE_BUTTON:
+                    Overlays.editOverlay(overlays[BUBBLE_ICON], {
+                        url: isActive ? BUBBLE_ON_ICON : BUBBLE_OFF_ICON
+                    });
+                    Overlays.editOverlay(overlays[BUBBLE_BUTTON], {
+                        url: isActive ? BUTTON_A_NORMAL : BUTTON_I_NORMAL
+                    });
+                    break;
+                default:
+                    error("Missing case: setButtonActive");
+            }
+        }
+
+        function connectButtonClicked(callback) {
+            buttonClickedCallback = callback;
+        }
+
+        function create() {
+            var i, length;
+            for (i = 0, length = OVERLAY_PROPERTIES.length; i < length; i++) {
+                // Update overlay properties with parent ID.
+                if (OVERLAY_PROPERTIES[i].parent !== undefined) {
+                    OVERLAY_PROPERTIES[i].parentID = overlays[OVERLAY_PROPERTIES[i].parent];
+                }
+
+                // Create overlay.
+                overlays[i] = Overlays.addOverlay(OVERLAY_PROPERTIES[i].type, OVERLAY_PROPERTIES[i]);
+            }
+        }
+
+        function destroy() {
+            var i, length;
+            for (i = 0, length = overlays.length; i < length; i++) {
+                Overlays.deleteOverlay(overlays[i]);
+                overlays[i] = null;
+            }
+
+            updateMiniTabletID();
+        }
+
+        create();
+
+        return {
+            MUTE_BUTTON: MUTE_BUTTON,
+            BUBBLE_BUTTON: BUBBLE_BUTTON,
+            GOTO_BUTTON: GOTO_BUTTON,
+            EXPAND_BUTTON: EXPAND_BUTTON,
+            show: show,
+            scale: scale,
+            startExpandingTablet: startExpandingTablet,
+            expandTablet: expandTablet,
+            getUIPositionAndRotation: getUIPositionAndRotation,
+            getTabletProxyID: getTabletProxyID,
+            getTabletProxyProperties: getTabletProxyProperties,
+            enable: enable,
+            disable: disable,
+            hide: hide,
+            setButtonActive: setButtonActive,
+            buttonClicked: {
+                connect: connectButtonClicked
+            },
+            destroy: destroy
+        };
+    };
 
     // #endregion
 
     // #region State Machine ===================================================================================================
+
+    function onButtonClicked(button) {
+        switch (button) {
+            case ui.MUTE_BUTTON:
+                Audio.muted = !Audio.muted;
+                break;
+            case ui.BUBBLE_BUTTON:
+                Users.toggleIgnoreRadius();
+                break;
+            case ui.GOTO_BUTTON:
+                setState(PROXY_EXPANDING, { hand: proxyHand, goto: true });
+                break;
+            case ui.EXPAND_BUTTON:
+                setState(PROXY_EXPANDING, { hand: proxyHand, goto: false });
+                break;
+            default:
+                error("Missing case: onButtonClicked");
+        }
+    }
+
+    function onMutedChanged() {
+        ui.setButtonActive(ui.MUTE_BUTTON, Audio.muted);
+    }
+
+    function onIgnoreRadiusEnabledChanged() {
+        ui.setButtonActive(ui.BUBBLE_BUTTON, Users.getIgnoreRadiusEnabled());
+    }
 
     function enterProxyDisabled() {
         // Stop updates.
@@ -386,21 +719,24 @@
             updateTimer = null;
         }
 
-        // Stop monitoring mute and bubble changes.
-        Audio.mutedChanged.disconnect(updateMutedStatus);
-        Users.ignoreRadiusEnabledChanged.disconnect(updateBubbleStatus);
+        // Stop event handling.
+        ui.disable();
+        Audio.mutedChanged.disconnect(onMutedChanged);
+        Users.ignoreRadiusEnabledChanged.disconnect(onIgnoreRadiusEnabledChanged);
 
         // Don't keep overlays prepared if in desktop mode.
-        destroyUI();
+        ui.destroy();
+        ui = null;
     }
 
     function exitProxyDisabled() {
         // Create UI so that it's ready to be displayed without seeing artefacts from creating the UI.
-        createUI();
+        ui = new UI();
+        ui.buttonClicked.connect(onButtonClicked);
 
         // Start monitoring mute and bubble changes.
-        Audio.mutedChanged.connect(updateMutedStatus);
-        Users.ignoreRadiusEnabledChanged.connect(updateBubbleStatus);
+        Audio.mutedChanged.connect(onMutedChanged);
+        Users.ignoreRadiusEnabledChanged.connect(onIgnoreRadiusEnabledChanged);
 
         // Start updates.
         updateTimer = Script.setTimeout(updateState, UPDATE_INTERVAL);
@@ -412,9 +748,10 @@
             jointIndex,
             handPosition,
             handOrientation,
+            uiPositionAndOrientation,
             proxyPosition,
             proxyOrientation,
-            proxyToCameraDirection;
+            cameraToProxyDirection;
 
         pose = Controller.getPoseValue(hand === LEFT_HAND ? Controller.Standard.LeftHand : Controller.Standard.RightHand);
         if (!pose.valid) {
@@ -425,15 +762,17 @@
         handPosition = Vec3.sum(MyAvatar.position,
             Vec3.multiplyQbyV(MyAvatar.orientation, MyAvatar.getAbsoluteJointTranslationInObjectFrame(jointIndex)));
         handOrientation = Quat.multiply(MyAvatar.orientation, MyAvatar.getAbsoluteJointRotationInObjectFrame(jointIndex));
+        uiPositionAndOrientation = ui.getUIPositionAndRotation(hand);
         proxyPosition = Vec3.sum(handPosition, Vec3.multiply(avatarScale,
-            Vec3.multiplyQbyV(handOrientation, PROXY_POSITIONS[hand])));
-        proxyOrientation = Quat.multiply(handOrientation, PROXY_ROTATIONS[hand]);
-        proxyToCameraDirection = Vec3.normalize(Vec3.subtract(Camera.position, proxyPosition));
-        return Vec3.dot(proxyToCameraDirection, Quat.getForward(proxyOrientation)) > MIN_HAND_CAMERA_ANGLE_COS;
+            Vec3.multiplyQbyV(handOrientation, uiPositionAndOrientation.position)));
+        proxyOrientation = Quat.multiply(handOrientation, uiPositionAndOrientation.rotation);
+        cameraToProxyDirection = Vec3.normalize(Vec3.subtract(proxyPosition, Camera.position));
+        return Vec3.dot(cameraToProxyDirection, Quat.getForward(proxyOrientation)) > MIN_HAND_CAMERA_ANGLE_COS;
     }
 
     function enterProxyHidden() {
-        hideUI();
+        ui.disable();
+        ui.hide();
     }
 
     function updateProxyHidden() {
@@ -452,7 +791,7 @@
     function scaleProxyDown() {
         var scaleFactor = (Date.now() - proxyScaleStart) / PROXY_SCALE_DURATION;
         if (scaleFactor < 1) {
-            sizeUI((1 - scaleFactor) * avatarScale);
+            ui.scale((1 - scaleFactor) * avatarScale);
             proxyScaleTimer = Script.setTimeout(scaleProxyDown, PROXY_SCALE_TIMEOUT);
             return;
         }
@@ -461,6 +800,7 @@
     }
 
     function enterProxyHiding() {
+        ui.disable();
         proxyScaleStart = Date.now();
         proxyScaleTimer = Script.setTimeout(scaleProxyDown, PROXY_SCALE_TIMEOUT);
     }
@@ -481,18 +821,20 @@
     function scaleProxyUp() {
         var scaleFactor = (Date.now() - proxyScaleStart) / PROXY_SCALE_DURATION;
         if (scaleFactor < 1) {
-            sizeUI(scaleFactor * avatarScale);
+            ui.scale(scaleFactor * avatarScale);
             proxyScaleTimer = Script.setTimeout(scaleProxyUp, PROXY_SCALE_TIMEOUT);
             return;
         }
         proxyScaleTimer = null;
-        sizeUI(avatarScale);
+        ui.scale(avatarScale);
         setState(PROXY_VISIBLE);
     }
 
     function enterProxyShowing(hand) {
         proxyHand = hand;
-        showUI();
+        ui.setButtonActive(ui.MUTE_BUTTON, Audio.muted);
+        ui.setButtonActive(ui.BUBBLE_BUTTON, Users.getIgnoreRadiusEnabled());
+        ui.show(hand);
         proxyScaleStart = Date.now();
         proxyScaleTimer = Script.setTimeout(scaleProxyUp, PROXY_SCALE_TIMEOUT);
     }
@@ -508,6 +850,10 @@
             Script.clearTimeout(proxyScaleTimer);
             proxyScaleTimer = null;
         }
+    }
+
+    function enterProxyVisible() {
+        ui.enable();
     }
 
     function updateProxyVisible() {
@@ -532,7 +878,7 @@
     function expandProxy() {
         var scaleFactor = (Date.now() - proxyExpandStart) / PROXY_EXPAND_DURATION;
         if (scaleFactor < 1) {
-            sizeUIAboutHandles(scaleFactor);
+            ui.expandTablet(scaleFactor);
             proxyExpandTimer = Script.setTimeout(expandProxy, PROXY_EXPAND_TIMEOUT);
             return;
         }
@@ -540,28 +886,11 @@
         setState(TABLET_OPEN);
     }
 
-    function enterProxyExpanding(hand) {
-        // Expansion details.
-        if (hand === proxyHand) {
-            proxyExpandHandles = PROXY_EXPAND_HANDLES;
-            proxyExpandDeltaRotation = PROXY_EXPAND_DELTA_ROTATION;
-        } else {
-            proxyExpandHandles = PROXY_EXPAND_HANDLES_OTHER;
-            proxyExpandDeltaRotation = PROXY_EXPAND_DELTA_ROTATION_OTHER;
-        }
+    function enterProxyExpanding(data) {
+        // Target details.
+        isGoto = data.goto;
 
-        // Grab details.
-        var properties = Overlays.getProperties(proxyOverlay, ["localPosition", "localRotation"]);
-        proxyExpandHand = hand;
-        proxyExpandLocalRotation = properties.localRotation;
-        proxyExpandLocalPosition = Vec3.sum(properties.localPosition,
-            Vec3.multiplyQbyV(proxyExpandLocalRotation,
-                Vec3.multiplyVbyV(proxyExpandHandles[proxyExpandHand], PROXY_DIMENSIONS)));
-
-        // Start expanding.
-        proxyInitialWidth = PROXY_DIMENSIONS.x;
-        proxyTargetWidth = getTabletWidthFromSettings();
-        proxyTargetLocalRotation = Quat.multiply(proxyExpandLocalRotation, proxyExpandDeltaRotation);
+        ui.startExpandingTablet(data.hand);
         proxyExpandStart = Date.now();
         proxyExpandTimer = Script.setTimeout(expandProxy, PROXY_EXPAND_TIMEOUT);
     }
@@ -581,14 +910,22 @@
     }
 
     function enterTabletOpen() {
-        var proxyOverlayProperties = Overlays.getProperties(proxyOverlay, ["position", "orientation"]);
+        var tabletProxyProperties = ui.getTabletProxyProperties(),
+            TABLET_ADDRESS_DIALOG = "hifi/tablet/TabletAddressDialog.qml";
 
-        hideUI();
+        ui.hide();
+
+        if (isGoto) {
+            tablet.loadQMLSource(TABLET_ADDRESS_DIALOG);
+        } else {
+            tablet.gotoHomeScreen();
+        }
 
         Overlays.editOverlay(HMD.tabletID, {
-            position: proxyOverlayProperties.position,
-            orientation: proxyOverlayProperties.orientation
+            position: tabletProxyProperties.position,
+            orientation: tabletProxyProperties.orientation
         });
+
         HMD.openTablet(true);
     }
 
@@ -619,7 +956,7 @@
             exit: exitProxyShowing
         },
         PROXY_VISIBLE: { // Tablet proxy is visible and attached to hand.
-            enter: null,
+            enter: enterProxyVisible,
             update: updateProxyVisible,
             exit: null
         },
@@ -680,20 +1017,20 @@
         }
 
         message = JSON.parse(data);
-        if (message.grabbedEntity !== proxyOverlay) {
+        if (message.grabbedEntity !== ui.getTabletProxyID()) {
             return;
         }
 
         if (message.action === "grab" && rezzerState === PROXY_VISIBLE) {
             hand = message.joint === HAND_NAMES[proxyHand] ? proxyHand : otherHand(proxyHand);
             if (hand === proxyHand) {
-                setState(PROXY_EXPANDING, hand);
+                setState(PROXY_EXPANDING, { hand: hand, goto: false });
             } else {
                 setState(PROXY_GRABBED);
             }
         } else if (message.action === "release" && rezzerState === PROXY_GRABBED) {
             hand = message.joint === HAND_NAMES[proxyHand] ? proxyHand : otherHand(proxyHand);
-            setState(PROXY_EXPANDING, hand);
+            setState(PROXY_EXPANDING, { hand: hand, goto: false });
         }
     }
 
