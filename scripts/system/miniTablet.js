@@ -455,6 +455,7 @@
             // Other overlays.
             for (i = 1, length = overlays.length; i < length; i++) {
                 Overlays.editOverlay(overlays[i], {
+                    parentID: OVERLAY_PROPERTIES[i].parentID, // Needed for tabet model.
                     localRotation: OVERLAY_PROPERTIES[i].localRotation,
                     dimensions: { x: 0.0001, y: 0.0001, z: 0.0001 }, // Vec3s are compatible with Vec2s.
                     visible: true
@@ -607,6 +608,11 @@
                     visible: false
                 });
             }
+
+            // Release tablet model parent so that hand can grab tablet proper.
+            Overlays.editOverlay(overlays[TABLET_MODEL], {
+                parentID: Uuid.NULL
+            });
         }
 
         function setButtonActive(button, isActive) {
