@@ -119,6 +119,7 @@
             GOTO_ICON = 7,
             EXPAND_ICON = 8,
             TABLET_MODEL = 9,
+            BACKGROUND = 10,
             OVERLAY_PROPERTIES = [
                 { // Origin
                     type: "sphere",
@@ -229,16 +230,28 @@
                     url: TABLET_MODEL_URL,
                     parent: ORIGIN,
                     dimensions: { x: 0.032, y: 0.0485, z: 0.0023 }, // Proportional to tablet proper.
-                    localPosition: { x: 0.035, y: 0, z: -0.0023 / 2 -ICON_DELTA_Z },
+                    localPosition: { x: 0.035, y: 0, z: -0.0023 / 2 - ICON_DELTA_Z },
                     localRotation: Quat.fromVec3Degrees({ x: 0, y: 180, z: 0 }),
                     solid: true,
                     grabbable: true,
                     showKeyboardFocusHighlight: false,
                     visible: false
+                },
+
+                { // Background to catch laser
+                    type: "circle3d",
+                    parent: ORIGIN,
+                    dimensions: { x: 0.06, y: 0.055 },
+                    localPosition: { x: 0.002, y: 0, z: -2 * ICON_DELTA_Z },
+                    localRotation: Quat.IDENTITY,
+                    alpha: 0,
+                    solid: true,
+                    visible: false
                 }
             ],
             SWAP_BUTTONS = [BUBBLE_BUTTON, BUBBLE_ICON, EXPAND_BUTTON, EXPAND_ICON, TABLET_MODEL],
             overlays = [],
+            buttonOverlays = [],
 
             UI_POSITIONS = [
                 {
@@ -257,6 +270,8 @@
                 Quat.fromVec3Degrees({ x: 0, y: 40, z: -90 })
             ],
 
+            BUTTON_RESS_DEBOUNCE_DELAY = 50,
+            buttonPressed = Date.now(),
             HOVER_LEAVE_DEBOUNCE_DELAY = 50,
             hoverLeaveTimers = [],
 
@@ -295,9 +310,11 @@
 
             buttonClickedCallback;
 
-        function updateMiniTabletID() {
+        function updateControllerDispatcher(visible) {
             // Send tablet overlay ID to controllerDispatcher so that it can use a smaller near grab distance.
-            Messages.sendLocalMessage("Hifi-MiniTablet-ID", overlays[TABLET_MODEL]);
+            Messages.sendLocalMessage("Hifi-MiniTablet-ID", visible ? overlays[TABLET_MODEL] : null);
+            // Send overlay IDs to controllerDispatcher so that laser automatically displays when near menu.
+            Messages.sendLocalMessage("Hifi-PalmMenu-IDs", JSON.stringify(visible ? overlays : []));
         }
 
         function setIgnoreOverlay(overlayID, ignore) {
@@ -389,7 +406,19 @@
             }
         }
 
+        function onMousePressOnOverlay(overlayID, event) {
+            if (buttonOverlays.indexOf(overlayID) !== -1) {
+                buttonPressed = Date.now();
+            }
+        }
+
         function onMouseReleaseOnOverlay(overlayID, event) {
+
+            // Work around there being multiple mouse press and release events as the controller module changes from 
+            // palmMenuLaserInput to webSurfaceLaserInpit when a button is pressed.
+            if (Date.now() - buttonPressed < BUTTON_RESS_DEBOUNCE_DELAY) {
+                return;
+            }
 
             function maybeClickButton(button) {
                 if (event.type !== "Release" || !event.isPrimaryButton) {
@@ -484,8 +513,6 @@
                     dimensions: dimensions,
                     visible: true
                 });
-
-                updateMiniTabletID();
             }
 
             isTabletVisible = true;
@@ -608,6 +635,7 @@
 
             Overlays.hoverEnterOverlay.connect(onHoverEnterOverlay);
             Overlays.hoverLeaveOverlay.connect(onHoverLeaveOverlay);
+            Overlays.mousePressOnOverlay.connect(onMousePressOnOverlay);
             Overlays.mouseReleaseOnOverlay.connect(onMouseReleaseOnOverlay);
 
             isUIEnabled = true;
@@ -621,6 +649,7 @@
 
             Overlays.hoverEnterOverlay.disconnect(onHoverEnterOverlay);
             Overlays.hoverLeaveOverlay.disconnect(onHoverLeaveOverlay);
+            Overlays.mousePressOnOverlay.disconnect(onMousePressOnOverlay);
             Overlays.mouseReleaseOnOverlay.disconnect(onMouseReleaseOnOverlay);
 
             setIgnoreOverlay(overlays[MUTE_ICON], false);
@@ -667,6 +696,14 @@
                 // Create overlay.
                 overlays[i] = Overlays.addOverlay(OVERLAY_PROPERTIES[i].type, OVERLAY_PROPERTIES[i]);
             }
+
+            buttonOverlays = [];
+            buttonOverlays.push(overlays[MUTE_BUTTON]);
+            buttonOverlays.push(overlays[BUBBLE_BUTTON]);
+            buttonOverlays.push(overlays[GOTO_BUTTON]);
+            buttonOverlays.push(overlays[EXPAND_BUTTON]);
+
+            updateControllerDispatcher(true);
         }
 
         function destroy() {
@@ -675,8 +712,9 @@
                 Overlays.deleteOverlay(overlays[i]);
                 overlays[i] = null;
             }
+            buttonOverlays = [];
 
-            updateMiniTabletID();
+            updateControllerDispatcher(false);
         }
 
         create();

@@ -25,6 +25,7 @@ var CONTOLLER_SCRIPTS = [
     "controllerModules/equipEntity.js",
     "controllerModules/nearTrigger.js",
     "controllerModules/webSurfaceLaserInput.js",
+    "controllerModules/palmMenuLaserInput.js",
     "controllerModules/inEditMode.js",
     "controllerModules/inVREditMode.js",
     "controllerModules/disableOtherModule.js",
