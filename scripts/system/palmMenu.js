@@ -19,8 +19,14 @@
     var // Primary objects
         UI,
         ui = null,
-        UIState,
-        uiState = null,
+        TabletState,
+        tabletState = null,
+        MenuState,
+        menuState = null,
+
+        // State updates
+        updateTimer = null,
+        UPDATE_INTERVAL = 300,
 
         // Hands
         LEFT_HAND = 0,
@@ -425,7 +431,7 @@
             // Other overlays.
             for (i = 1, length = overlays.length; i < length; i++) {
                 Overlays.editOverlay(overlays[i], {
-                    parentID: OVERLAY_PROPERTIES[i].parentID, // Needed for tabet model.
+                    parentID: OVERLAY_PROPERTIES[i].parentID, // Needed for tablet model.
                     localRotation: OVERLAY_PROPERTIES[i].localRotation,
                     dimensions: { x: 0.0001, y: 0.0001, z: 0.0001 }, // Vec3s are compatible with Vec2s.
                     visible: true
@@ -521,11 +527,11 @@
             };
         }
 
-        function getTabletProxyID() {
+        function getTabletModelID() {
             return overlays[TABLET_MODEL];
         }
 
-        function getTabletProxyProperties() {
+        function getTabletModelProperties() {
             var properties = Overlays.getProperties(overlays[TABLET_MODEL], ["position", "orientation"]);
             return {
                 position: properties.position,
@@ -644,8 +650,8 @@
             startExpandingTablet: startExpandingTablet,
             expandTablet: expandTablet,
             getUIPositionAndRotation: getUIPositionAndRotation,
-            getTabletProxyID: getTabletProxyID,
-            getTabletProxyProperties: getTabletProxyProperties,
+            getTabletModelID: getTabletModelID,
+            getTabletModelProperties: getTabletModelProperties,
             enable: enable,
             disable: disable,
             hide: hide,
@@ -659,44 +665,225 @@
 
     // #endregion
 
-    // #region UI State Machine ================================================================================================
+    // #region Tablet State Machine ============================================================================================
 
-    UIState = function () {
+    TabletState = function () {
 
-        // State machine
-        var PROXY_DISABLED = 0,
-            PROXY_HIDDEN = 1,
-            PROXY_HIDING = 2,
-            PROXY_SHOWING = 3,
-            PROXY_VISIBLE = 4,
-            PROXY_GRABBED = 5,
-            PROXY_EXPANDING = 6,
-            TABLET_OPEN = 7,
-            STATE_STRINGS = ["PROXY_DISABLED", "PROXY_HIDDEN", "PROXY_HIDING", "PROXY_SHOWING", "PROXY_VISIBLE",
-                "PROXY_GRABBED", "PROXY_EXPANDING", "TABLET_OPEN"],
+        // Secondary state machine which controls the UI's tablet model.
+
+        if (!(this instanceof TabletState)) {
+            return new TabletState();
+        }
+
+        var TABLET_DISABLED = 0,
+            TABLET_UNAVAILABLE = 1,
+            TABLET_AVAILABLE = 2,
+            TABLET_GRABBED = 3,
+            TABLET_EXPANDING = 4,
+            TABLET_EXPANDED = 5,
+            STATE_STRINGS = ["TABLET_DISABLED", "TABLET_UNAVAILABLE", "TABLET_AVAILABLE", "TABLET_GRABBED", "TABLET_EXPANDING",
+                "TABLET_EXPANDED"],
             STATE_MACHINE,
-            machineState = PROXY_DISABLED,
-            proxyHand, // TODO: Rename to uiHand
-            PROXY_SCALE_DURATION = 150,
-            PROXY_SCALE_TIMEOUT = 20,
-            proxyScaleTimer = null,
-            proxyScaleStart,
-            PROXY_EXPAND_DURATION = 250,
-            PROXY_EXPAND_TIMEOUT = 20,
-            proxyExpandTimer = null,
-            proxyExpandStart,
+            machineState = TABLET_DISABLED,
+
             isGoto,
 
-            updateTimer = null,
-            UPDATE_INTERVAL = 300,
+            TABLET_EXPAND_DURATION = 250,
+            TABLET_EXPAND_TIMEOUT = 20,
+            tabletExpandTimer = null,
+            tabletExpandStart;
+
+        function updateTabletUnavailable() {
+            // Show tablet model if tablet proper has stopped being displayed.
+            if (!HMD.showTablet) {
+                setState(TABLET_AVAILABLE);
+            }
+        }
+
+        function updateTabletAvailable() {
+            // Hide tablet model if tablet proper has been displayed by other means.
+            if (HMD.showTablet) {
+                setState(TABLET_UNAVAILABLE);
+            }
+        }
+
+        function updateTabletGrabbed() {
+            // Hide tablet model if tablet proper has been displayed by other means.
+            if (HMD.showTablet) {
+                setState(TABLET_UNAVAILABLE);
+            }
+        }
+
+        function expandTablet() {
+            var scaleFactor = (Date.now() - tabletExpandStart) / TABLET_EXPAND_DURATION;
+            if (scaleFactor < 1) {
+                ui.expandTablet(scaleFactor);
+                tabletExpandTimer = Script.setTimeout(expandTablet, TABLET_EXPAND_TIMEOUT);
+                return;
+            }
+            tabletExpandTimer = null;
+            setState(TABLET_EXPANDED);
+        }
+
+        function enterTabletExpanding(data) {
+            // Target details.
+            isGoto = data.goto;
+
+            ui.startExpandingTablet(data.hand);
+            tabletExpandStart = Date.now();
+            tabletExpandTimer = Script.setTimeout(expandTablet, TABLET_EXPAND_TIMEOUT);
+        }
+
+        function updateTabletExanding() {
+            // Hide tablet model immediately if tablet has been displayed by other means.
+            if (HMD.showTablet) {
+                setState(TABLET_UNAVAILABLE);
+            }
+        }
+
+        function exitTabletExpanding() {
+            if (tabletExpandTimer !== null) {
+                Script.clearTimeout(tabletExpandTimer);
+                tabletExpandTimer = null;
+            }
+        }
+
+        function enterTabletExpanded() {
+            var tabletModelProperties = ui.getTabletModelProperties(),
+                TABLET_ADDRESS_DIALOG = "hifi/tablet/TabletAddressDialog.qml";
+
+            //ui.hideTablet(); //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+            if (isGoto) {
+                tablet.loadQMLSource(TABLET_ADDRESS_DIALOG);
+            } else {
+                tablet.gotoHomeScreen();
+            }
+
+            Overlays.editOverlay(HMD.tabletID, {
+                position: tabletModelProperties.position,
+                orientation: tabletModelProperties.orientation
+            });
+
+            HMD.openTablet(true);
+        }
+
+        function updateTabletExpanded() {
+            // Immediately transition.
+            setState(TABLET_UNAVAILABLE);
+        }
+
+        STATE_MACHINE = {
+            TABLET_DISABLED: { // Tablet model not able to be displayed because in desktop mode.
+                enter: null,
+                update: null,
+                exit: null
+            },
+            TABLET_UNAVAILABLE: { // Tablet model not able to be displayed because proper tablet is open.
+                enter: null,
+                update: updateTabletUnavailable,
+                exit: null
+            },
+            TABLET_AVAILABLE: { // Tablet model able to be displayed and available for action.
+                enter: null,
+                update: updateTabletAvailable,
+                exit: null
+            },
+            TABLET_GRABBED: { // Tablet model is grabbed.
+                enter: null,
+                update: updateTabletGrabbed,
+                exit: null
+            },
+            TABLET_EXPANDING: { // Tablet model is expanding to become tablet proper.
+                enter: enterTabletExpanding,
+                update: updateTabletExanding,
+                exit: exitTabletExpanding
+            },
+            TABLET_EXPANDED: { // Tablet model has finished expanding to become tablet proper.
+                enter: enterTabletExpanded,
+                update: updateTabletExpanded,
+                exit: null
+            }
+        };
+
+        function getState() {
+            return machineState;
+        }
+
+        function setState(state, data) {
+            if (state !== machineState) {
+                debug("State transition from " + STATE_STRINGS[machineState] + " to " + STATE_STRINGS[state]);
+                if (STATE_MACHINE[STATE_STRINGS[machineState]].exit) {
+                    STATE_MACHINE[STATE_STRINGS[machineState]].exit(data);
+                }
+                if (STATE_MACHINE[STATE_STRINGS[state]].enter) {
+                    STATE_MACHINE[STATE_STRINGS[state]].enter(data);
+                }
+                machineState = state;
+            } else {
+                error("Null state transition: " + state + "!");
+            }
+        }
+
+        function updateState() {
+            if (STATE_MACHINE[STATE_STRINGS[machineState]].update) {
+                STATE_MACHINE[STATE_STRINGS[machineState]].update();
+            }
+        }
+
+        function create() {
+            // Nothing to do.
+        }
+
+        function destroy() {
+            setState(TABLET_DISABLED);
+        }
+
+        create();
+
+        return {
+            TABLET_DISABLED: TABLET_DISABLED,
+            TABLET_UNAVAILABLE: TABLET_UNAVAILABLE,
+            TABLET_AVAILABLE: TABLET_AVAILABLE,
+            TABLET_GRABBED: TABLET_GRABBED,
+            TABLET_EXPANDING: TABLET_EXPANDING,
+            TABLET_EXPANDED: TABLET_EXPANDED,
+            updateState: updateState,
+            getState: getState,
+            setState: setState,
+            destroy: destroy
+        };
+    };
+
+    // #endregion
+
+    // #region Menu State Machine ==============================================================================================
+
+    MenuState = function () {
+
+        // Primary state machine in overall control of the UI.
+
+        if (!(this instanceof MenuState)) {
+            return new MenuState();
+        }
+
+        var MENU_DISABLED = 0,
+            MENU_HIDDEN = 1,
+            MENU_HIDING = 2,
+            MENU_SHOWING = 3,
+            MENU_VISIBLE = 4,
+            STATE_STRINGS = ["MENU_DISABLED", "MENU_HIDDEN", "MENU_HIDING", "MENU_SHOWING", "MENU_VISIBLE"],
+            STATE_MACHINE,
+            machineState = MENU_DISABLED,
+            menuHand,
+            MENU_SCALE_DURATION = 150,
+            MENU_SCALE_TIMEOUT = 20,
+            menuScaleTimer = null,
+            menuScaleStart,
 
             MIN_HAND_CAMERA_ANGLE = 30,
             DEGREES_180 = 180,
             MIN_HAND_CAMERA_ANGLE_COS = Math.cos(Math.PI * MIN_HAND_CAMERA_ANGLE / DEGREES_180);
-
-        if (!(this instanceof UIState)) {
-            return new UIState();
-        }
 
         function onButtonClicked(button) {
             switch (button) {
@@ -707,10 +894,10 @@
                     Users.toggleIgnoreRadius();
                     break;
                 case ui.GOTO_BUTTON:
-                    setState(PROXY_EXPANDING, { hand: proxyHand, goto: true });
+                    tabletState.setState(tabletState.TABLET_EXPANDING, { hand: menuHand, goto: true });
                     break;
                 case ui.EXPAND_BUTTON:
-                    setState(PROXY_EXPANDING, { hand: proxyHand, goto: false });
+                    tabletState.setState(tabletState.TABLET_EXPANDING, { hand: menuHand, goto: false });
                     break;
                 default:
                     error("Missing case: onButtonClicked");
@@ -725,13 +912,7 @@
             ui.setButtonActive(ui.BUBBLE_BUTTON, Users.getIgnoreRadiusEnabled());
         }
 
-        function enterProxyDisabled() {
-            // Stop updates.
-            if (updateTimer !== null) {
-                Script.clearTimeout(updateTimer);
-                updateTimer = null;
-            }
-
+        function enterMenuDisabled() {
             // Stop event handling.
             ui.disable();
             Audio.mutedChanged.disconnect(onMutedChanged);
@@ -742,7 +923,7 @@
             ui = null;
         }
 
-        function exitProxyDisabled() {
+        function exitMenuDisabled() {
             // Create UI so that it's ready to be displayed without seeing artefacts from creating the UI.
             ui = new UI();
             ui.buttonClicked.connect(onButtonClicked);
@@ -750,9 +931,6 @@
             // Start monitoring mute and bubble changes.
             Audio.mutedChanged.connect(onMutedChanged);
             Users.ignoreRadiusEnabledChanged.connect(onIgnoreRadiusEnabledChanged);
-
-            // Start updates.
-            updateTimer = Script.setTimeout(updateState, UPDATE_INTERVAL);
         }
 
         function shouldShowProxy(hand) {
@@ -783,209 +961,128 @@
             return Vec3.dot(cameraToProxyDirection, Quat.getForward(proxyOrientation)) > MIN_HAND_CAMERA_ANGLE_COS;
         }
 
-        function enterProxyHidden() {
+        function enterMenuHidden() {
             ui.disable();
             ui.hide();
         }
 
-        function updateProxyHidden() {
+        function updateMenuHidden() {
             // Don't show proxy if tablet is already displayed or in toolbar mode.
             if (HMD.showTablet || tablet.toolbarMode) {
                 return;
             }
             // Compare palm directions of hands with vectors from palms to camera.
             if (shouldShowProxy(LEFT_HAND)) {
-                setState(PROXY_SHOWING, LEFT_HAND);
+                setState(MENU_SHOWING, LEFT_HAND);
             } else if (shouldShowProxy(RIGHT_HAND)) {
-                setState(PROXY_SHOWING, RIGHT_HAND);
+                setState(MENU_SHOWING, RIGHT_HAND);
             }
         }
 
-        function scaleProxyDown() {
-            var scaleFactor = (Date.now() - proxyScaleStart) / PROXY_SCALE_DURATION;
+        function scaleMenuDown() {
+            var scaleFactor = (Date.now() - menuScaleStart) / MENU_SCALE_DURATION;
             if (scaleFactor < 1) {
                 ui.scale((1 - scaleFactor) * avatarScale);
-                proxyScaleTimer = Script.setTimeout(scaleProxyDown, PROXY_SCALE_TIMEOUT);
+                menuScaleTimer = Script.setTimeout(scaleMenuDown, MENU_SCALE_TIMEOUT);
                 return;
             }
-            proxyScaleTimer = null;
-            setState(PROXY_HIDDEN);
+            menuScaleTimer = null;
+            setState(MENU_HIDDEN);
         }
 
-        function enterProxyHiding() {
+        function enterMenuHiding() {
             ui.disable();
-            proxyScaleStart = Date.now();
-            proxyScaleTimer = Script.setTimeout(scaleProxyDown, PROXY_SCALE_TIMEOUT);
+            menuScaleStart = Date.now();
+            menuScaleTimer = Script.setTimeout(scaleMenuDown, MENU_SCALE_TIMEOUT);
         }
 
-        function updateProxyHiding() {
+        function updateMenuHiding() {
             if (HMD.showTablet) {
-                setState(PROXY_HIDDEN);
+                setState(MENU_HIDDEN);
             }
         }
 
-        function exitProxyHiding() {
-            if (proxyScaleTimer) {
-                Script.clearTimeout(proxyScaleTimer);
-                proxyScaleTimer = null;
+        function exitMenuHiding() {
+            if (menuScaleTimer) {
+                Script.clearTimeout(menuScaleTimer);
+                menuScaleTimer = null;
             }
         }
 
         function scaleProxyUp() {
-            var scaleFactor = (Date.now() - proxyScaleStart) / PROXY_SCALE_DURATION;
+            var scaleFactor = (Date.now() - menuScaleStart) / MENU_SCALE_DURATION;
             if (scaleFactor < 1) {
                 ui.scale(scaleFactor * avatarScale);
-                proxyScaleTimer = Script.setTimeout(scaleProxyUp, PROXY_SCALE_TIMEOUT);
+                menuScaleTimer = Script.setTimeout(scaleProxyUp, MENU_SCALE_TIMEOUT);
                 return;
             }
-            proxyScaleTimer = null;
+            menuScaleTimer = null;
             ui.scale(avatarScale);
-            setState(PROXY_VISIBLE);
+            setState(MENU_VISIBLE);
         }
 
-        function enterProxyShowing(hand) {
-            proxyHand = hand;
+        function enterMenuShowing(hand) {
+            menuHand = hand;
             ui.setButtonActive(ui.MUTE_BUTTON, Audio.muted);
             ui.setButtonActive(ui.BUBBLE_BUTTON, Users.getIgnoreRadiusEnabled());
             ui.show(hand);
-            proxyScaleStart = Date.now();
-            proxyScaleTimer = Script.setTimeout(scaleProxyUp, PROXY_SCALE_TIMEOUT);
+            menuScaleStart = Date.now();
+            menuScaleTimer = Script.setTimeout(scaleProxyUp, MENU_SCALE_TIMEOUT);
         }
 
-        function updateProxyShowing() {
+        function updateMenuShowing() {
             if (HMD.showTablet) {
-                setState(PROXY_HIDDEN);
+                setState(MENU_HIDDEN);
             }
         }
 
-        function exitProxyShowing() {
-            if (proxyScaleTimer) {
-                Script.clearTimeout(proxyScaleTimer);
-                proxyScaleTimer = null;
+        function exitMenuShowing() {
+            if (menuScaleTimer) {
+                Script.clearTimeout(menuScaleTimer);
+                menuScaleTimer = null;
             }
         }
 
-        function enterProxyVisible() {
+        function enterMenuVisible() {
             ui.enable();
         }
 
-        function updateProxyVisible() {
+        function updateMenuVisible() {
             // Hide proxy if tablet has been displayed by other means.
             if (HMD.showTablet) {
-                setState(PROXY_HIDDEN);
+                setState(MENU_HIDDEN);
                 return;
             }
             // Check that palm direction of proxy hand still less than maximum angle.
-            if (!shouldShowProxy(proxyHand)) {
-                setState(PROXY_HIDING);
+            if (!shouldShowProxy(menuHand)) {
+                setState(MENU_HIDING);
             }
-        }
-
-        function updateProxyGrabbed() {
-            // Hide proxy if tablet has been displayed by other means.
-            if (HMD.showTablet) {
-                setState(PROXY_HIDDEN);
-            }
-        }
-
-        function expandProxy() {
-            var scaleFactor = (Date.now() - proxyExpandStart) / PROXY_EXPAND_DURATION;
-            if (scaleFactor < 1) {
-                ui.expandTablet(scaleFactor);
-                proxyExpandTimer = Script.setTimeout(expandProxy, PROXY_EXPAND_TIMEOUT);
-                return;
-            }
-            proxyExpandTimer = null;
-            setState(TABLET_OPEN);
-        }
-
-        function enterProxyExpanding(data) {
-            // Target details.
-            isGoto = data.goto;
-
-            ui.startExpandingTablet(data.hand);
-            proxyExpandStart = Date.now();
-            proxyExpandTimer = Script.setTimeout(expandProxy, PROXY_EXPAND_TIMEOUT);
-        }
-
-        function updateProxyExanding() {
-            // Hide proxy immediately if tablet has been displayed by other means.
-            if (HMD.showTablet) {
-                setState(PROXY_HIDDEN);
-            }
-        }
-
-        function exitProxyExpanding() {
-            if (proxyExpandTimer !== null) {
-                Script.clearTimeout(proxyExpandTimer);
-                proxyExpandTimer = null;
-            }
-        }
-
-        function enterTabletOpen() {
-            var tabletProxyProperties = ui.getTabletProxyProperties(),
-                TABLET_ADDRESS_DIALOG = "hifi/tablet/TabletAddressDialog.qml";
-
-            ui.hide();
-
-            if (isGoto) {
-                tablet.loadQMLSource(TABLET_ADDRESS_DIALOG);
-            } else {
-                tablet.gotoHomeScreen();
-            }
-
-            Overlays.editOverlay(HMD.tabletID, {
-                position: tabletProxyProperties.position,
-                orientation: tabletProxyProperties.orientation
-            });
-
-            HMD.openTablet(true);
-        }
-
-        function updateTabletOpen() {
-            // Immediately transition back to PROXY_HIDDEN.
-            setState(PROXY_HIDDEN);
         }
 
         STATE_MACHINE = {
-            PROXY_DISABLED: { // Tablet proxy cannot be shown because in desktop mode.
-                enter: enterProxyDisabled,
+            MENU_DISABLED: { // Menu not shown because in desktop mode.
+                enter: enterMenuDisabled,
                 update: null,
-                exit: exitProxyDisabled
+                exit: exitMenuDisabled
             },
-            PROXY_HIDDEN: { // Tablet proxy could be shown but isn't because hand is oriented to show it or aren't in HMD mode.
-                enter: enterProxyHidden,
-                update: updateProxyHidden,
+            MENU_HIDDEN: { // Menu could be shown but isn't because hand isn't oriented to show it.
+                enter: enterMenuHidden,
+                update: updateMenuHidden,
                 exit: null
             },
-            PROXY_HIDING: { // Tablet proxy is reducing from PROXY_VISIBLE to PROXY_HIDDEN.
-                enter: enterProxyHiding,
-                update: updateProxyHiding,
-                exit: exitProxyHiding
+            MENU_HIDING: { // Menu is reducing from MENU_VISIBLE to MENU_HIDDEN.
+                enter: enterMenuHiding,
+                update: updateMenuHiding,
+                exit: exitMenuHiding
             },
-            PROXY_SHOWING: { // Tablet proxy is expanding from PROXY_HIDDN to PROXY_VISIBLE.
-                enter: enterProxyShowing,
-                update: updateProxyShowing,
-                exit: exitProxyShowing
+            MENU_SHOWING: { // Menu is expanding from MENU_HIDDEN to MENU_VISIBLE.
+                enter: enterMenuShowing,
+                update: updateMenuShowing,
+                exit: exitMenuShowing
             },
-            PROXY_VISIBLE: { // Tablet proxy is visible and attached to hand.
-                enter: enterProxyVisible,
-                update: updateProxyVisible,
-                exit: null
-            },
-            PROXY_GRABBED: { // Tablet proxy is grabbed by other hand.
-                enter: null,
-                update: updateProxyGrabbed,
-                exit: null
-            },
-            PROXY_EXPANDING: { // Tablet proxy is expanding before showing tablet proper.
-                enter: enterProxyExpanding,
-                update: updateProxyExanding,
-                exit: exitProxyExpanding
-            },
-            TABLET_OPEN: { // Tablet proper is being displayed.
-                enter: enterTabletOpen,
-                update: updateTabletOpen,
+            MENU_VISIBLE: { // Menu is visible.
+                enter: enterMenuVisible,
+                update: updateMenuVisible,
                 exit: null
             }
         };
@@ -1013,11 +1110,10 @@
             if (STATE_MACHINE[STATE_STRINGS[machineState]].update) {
                 STATE_MACHINE[STATE_STRINGS[machineState]].update();
             }
-            updateTimer = Script.setTimeout(updateState, UPDATE_INTERVAL);
         }
 
         function getHand() {
-            return proxyHand;
+            return menuHand;
         }
 
         function create() {
@@ -1025,19 +1121,18 @@
         }
 
         function destroy() {
-            setState(PROXY_DISABLED);
+            setState(MENU_DISABLED);
         }
 
         create();
 
         return {
-            PROXY_DISABLED: PROXY_DISABLED,
-            PROXY_HIDDEN: PROXY_HIDDEN,
-            PROXY_HIDING: PROXY_HIDING,
-            PROXY_SHOWING: PROXY_SHOWING,
-            PROXY_VISIBLE: PROXY_VISIBLE,
-            PROXY_GRABBED: PROXY_GRABBED,
-            PROXY_EXPANDING: PROXY_EXPANDING,
+            MENU_DISABLED: MENU_DISABLED,
+            MENU_HIDDEN: MENU_HIDDEN,
+            MENU_HIDING: MENU_HIDING,
+            MENU_SHOWING: MENU_SHOWING,
+            MENU_VISIBLE: MENU_VISIBLE,
+            updateState: updateState,
             getState: getState,
             setState: setState,
             getHand: getHand,
@@ -1045,10 +1140,6 @@
         };
 
     };
-
-    // #endregion
-
-    // #region State Machine ===================================================================================================
 
     // #endregion
 
@@ -1062,7 +1153,7 @@
 
     function onMessageReceived(channel, data, senderID, localOnly) {
         var message,
-            uiHand,
+            tabletHand,
             hand;
 
         if (channel !== HIFI_OBJECT_MANIPULATION_CHANNEL) {
@@ -1070,30 +1161,44 @@
         }
 
         message = JSON.parse(data);
-        if (message.grabbedEntity !== ui.getTabletProxyID()) {
+        if (message.grabbedEntity !== ui.getTabletModelID()) {
             return;
         }
 
-        uiHand = uiState.getHand();
-        if (message.action === "grab" && uiState.getState() === uiState.PROXY_VISIBLE) {
-            hand = message.joint === HAND_NAMES[uiHand] ? uiHand : otherHand(uiHand);
-            if (hand === uiHand) {
-                uiState.setState(uiState.PROXY_EXPANDING, { hand: hand, goto: false });
+        tabletHand = menuState.getHand();
+        if (message.action === "grab" && menuState.getState() === menuState.MENU_VISIBLE
+                && tabletState.getState() === tabletState.TABLET_AVAILABLE) {
+            hand = message.joint === HAND_NAMES[tabletHand] ? tabletHand : otherHand(tabletHand);
+            if (hand === tabletHand) {
+                tabletState.setState(tabletState.TABLET_EXPANDING, { hand: hand, goto: false });
             } else {
-                uiState.setState(uiState.PROXY_GRABBED);
+                tabletState.setState(tabletState.TABLET_GRABBED);
             }
-        } else if (message.action === "release" && uiState.getState() === uiState.PROXY_GRABBED) {
-            hand = message.joint === HAND_NAMES[uiHand] ? uiHand : otherHand(uiHand);
-            uiState.setState(uiState.PROXY_EXPANDING, { hand: hand, goto: false });
+        } else if (message.action === "release" && tabletState.getState() === tabletState.TABLET_GRABBED) {
+            hand = message.joint === HAND_NAMES[tabletHand] ? tabletHand : otherHand(tabletHand);
+            tabletState.setState(tabletState.TABLET_EXPANDING, { hand: hand, goto: false });
         }
     }
 
+    function updateStates() {
+        tabletState.updateState();
+        menuState.updateState();
+        updateTimer = Script.setTimeout(updateStates, UPDATE_INTERVAL);
+    }
+
     function onDisplayModeChanged() {
-        // Tablet proxy only available when HMD is active.
+        // Menu available only when HMD is active.
         if (HMD.active) {
-            uiState.setState(uiState.PROXY_HIDDEN);
+            tabletState.setState(tabletState.TABLET_UNAVAILABLE);
+            menuState.setState(menuState.MENU_HIDDEN);
+            updateTimer = Script.setTimeout(updateStates, UPDATE_INTERVAL);
         } else {
-            uiState.setState(uiState.PROXY_DISABLED);
+            if (updateTimer) {
+                Script.clearTimeout(updateTimer);
+                updateTimer = null;
+            }
+            tabletState.setState(tabletState.TABLET_DISABLED);
+            menuState.setState(menuState.MENU_DISABLED);
         }
     }
 
@@ -1102,7 +1207,8 @@
     // #region Start-up and tear-down ==========================================================================================
 
     function setUp() {
-        uiState = new UIState();
+        menuState = new MenuState();
+        tabletState = new TabletState();
 
         MyAvatar.scaleChanged.connect(onScaleChanged);
 
@@ -1111,7 +1217,7 @@
 
         HMD.displayModeChanged.connect(onDisplayModeChanged);
         if (HMD.active) {
-            uiState.setState(uiState.PROXY_HIDDEN);
+            menuState.setState(menuState.MENU_HIDDEN);
         }
     }
 
@@ -1124,8 +1230,10 @@
 
         MyAvatar.scaleChanged.disconnect(onScaleChanged);
 
-        uiState.destroy();
-        uiState = null;
+        tabletState.destroy();
+        tabletState = null;
+        menuState.destroy();
+        menuState = null;
     }
 
     setUp();
