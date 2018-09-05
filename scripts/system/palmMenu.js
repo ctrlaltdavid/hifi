@@ -35,9 +35,10 @@
 
         // Miscellaneous.
         tablet = Tablet.getTablet("com.highfidelity.interface.tablet.system"),
+        TABLET_ADDRESS_DIALOG = "hifi/tablet/TabletAddressDialog.qml",
         HIFI_OBJECT_MANIPULATION_CHANNEL = "Hifi-Object-Manipulation",
         avatarScale = MyAvatar.scale,
-        DEBUG = false;
+        DEBUG = true;
 
     // #region Utilities =======================================================================================================
 
@@ -285,7 +286,11 @@
             hoverSound = SoundCache.getSound(Script.resolvePath(HOVER_SOUND)),
             clickSound = SoundCache.getSound(Script.resolvePath(CLICK_SOUND)),
 
-            uiEnabled = false, // UI is disabled when hidden or showing / hiding.
+            isMenuVisible = false,
+            isTabletVisible = false,
+
+            isUIEnabled = false, // UI is disabled when hidden or showing / hiding.
+
             uiHand = LEFT_HAND,
 
             buttonClickedCallback;
@@ -415,7 +420,7 @@
             }
         }
 
-        function show(hand) {
+        function showMenu(hand) {
             var i, length;
 
             uiHand = hand;
@@ -428,14 +433,16 @@
                 localRotation: UI_ROTATIONS[uiHand]
             });
 
-            // Other overlays.
+            // Other menu overlays.
             for (i = 1, length = overlays.length; i < length; i++) {
-                Overlays.editOverlay(overlays[i], {
-                    parentID: OVERLAY_PROPERTIES[i].parentID, // Needed for tablet model.
-                    localRotation: OVERLAY_PROPERTIES[i].localRotation,
-                    dimensions: { x: 0.0001, y: 0.0001, z: 0.0001 }, // Vec3s are compatible with Vec2s.
-                    visible: true
-                });
+                if (i !== TABLET_MODEL) {
+                    Overlays.editOverlay(overlays[i], {
+                        parentID: OVERLAY_PROPERTIES[i].parentID, // Needed for tablet model.
+                        localRotation: OVERLAY_PROPERTIES[i].localRotation,
+                        dimensions: { x: 0.0001, y: 0.0001, z: 0.0001 }, // Vec3s are compatible with Vec2s.
+                        visible: true
+                    });
+                }
             }
 
             hoverLeaveTimers[MUTE_BUTTON] = null;
@@ -443,10 +450,56 @@
             hoverLeaveTimers[GOTO_BUTTON] = null;
             hoverLeaveTimers[EXPAND_BUTTON] = null;
 
-            updateMiniTabletID();
+            isMenuVisible = true;
         }
 
-        function scale(scaleFactor) {
+        function hideMenu() {
+            var i, length;
+            for (i = 0, length = overlays.length; i < length; i++) {
+                Overlays.editOverlay(overlays[i], {
+                    visible: false || i === TABLET_MODEL && isTabletVisible
+                });
+            }
+
+            isMenuVisible = false;
+        }
+
+        function showTablet(tiny) {
+            var isRightHand = uiHand === RIGHT_HAND,
+                SWAP_X = { x: -1, y: 1, z: 1 },
+                swapX,
+                properties = OVERLAY_PROPERTIES[TABLET_MODEL],
+                localPosition,
+                dimensions;
+
+            if (isMenuVisible) {
+                swapX = (isRightHand && SWAP_BUTTONS.indexOf(TABLET_MODEL) !== -1) ? SWAP_X : Vec3.ONE; // Swap bubble and menu?
+                properties = OVERLAY_PROPERTIES[TABLET_MODEL];
+                localPosition = Vec3.multiply(avatarScale, Vec3.multiplyVbyV(swapX, properties.localPosition));
+                dimensions = tiny ? { x: 0.0001, y: 0.0001, z: 0.0001 } : Vec3.multiply(avatarScale, properties.dimensions);
+                Overlays.editOverlay(overlays[TABLET_MODEL], {
+                    parentID: properties.parentID,
+                    localPosition: localPosition,
+                    localRotation: properties.localRotation,
+                    dimensions: dimensions,
+                    visible: true
+                });
+
+                updateMiniTabletID();
+            }
+
+            isTabletVisible = true;
+        }
+
+        function hideTablet() {
+            isTabletVisible = false;
+            Overlays.editOverlay(overlays[TABLET_MODEL], {
+                parentID: Uuid.NULL, // Release tablet model parent so that hand can grab tablet proper.
+                visible: false
+            });
+        }
+
+        function scale(scaleFactor, doScaleTablet) {
             // Scale UI in place.
             var properties,
                 isRightHand = uiHand === RIGHT_HAND,
@@ -455,12 +508,14 @@
                 i, length;
 
             for (i = 1, length = overlays.length; i < length; i++) {
-                properties = OVERLAY_PROPERTIES[i];
-                swapX = (isRightHand && SWAP_BUTTONS.indexOf(i) !== -1) ? SWAP_X : Vec3.ONE; // Swap bubble and tablet buttons?
-                Overlays.editOverlay(overlays[i], {
-                    localPosition: Vec3.multiply(scaleFactor, Vec3.multiplyVbyV(swapX, properties.localPosition)),
-                    dimensions: Vec3.multiply(scaleFactor, properties.dimensions) // Vec3s are compatible with Vec2s.
-                });
+                if (doScaleTablet || i !== TABLET_MODEL) {
+                    properties = OVERLAY_PROPERTIES[i];
+                    swapX = (isRightHand && SWAP_BUTTONS.indexOf(i) !== -1) ? SWAP_X : Vec3.ONE; // Swap bubble and menu?
+                    Overlays.editOverlay(overlays[i], {
+                        localPosition: Vec3.multiply(scaleFactor, Vec3.multiplyVbyV(swapX, properties.localPosition)),
+                        dimensions: Vec3.multiply(scaleFactor, properties.dimensions) // Vec3s are compatible with Vec2s.
+                    });
+                }
             }
         }
 
@@ -541,7 +596,7 @@
 
         function enable() {
             // Enable hovering and clicking.
-            if (uiEnabled) {
+            if (isUIEnabled) {
                 return;
             }
 
@@ -555,12 +610,12 @@
             Overlays.hoverLeaveOverlay.connect(onHoverLeaveOverlay);
             Overlays.mouseReleaseOnOverlay.connect(onMouseReleaseOnOverlay);
 
-            uiEnabled = true;
+            isUIEnabled = true;
         }
 
         function disable() {
             // Disable hovering and clicking.
-            if (!uiEnabled) {
+            if (!isUIEnabled) {
                 return;
             }
 
@@ -574,21 +629,7 @@
             setIgnoreOverlay(overlays[EXPAND_ICON], false);
             setIgnoreOverlay(overlays[TABLET_MODEL], false);
 
-            uiEnabled = false;
-        }
-
-        function hide() {
-            var i, length;
-            for (i = 0, length = overlays.length; i < length; i++) {
-                Overlays.editOverlay(overlays[i], {
-                    visible: false
-                });
-            }
-
-            // Release tablet model parent so that hand can grab tablet proper.
-            Overlays.editOverlay(overlays[TABLET_MODEL], {
-                parentID: Uuid.NULL
-            });
+            isUIEnabled = false;
         }
 
         function setButtonActive(button, isActive) {
@@ -645,7 +686,10 @@
             BUBBLE_BUTTON: BUBBLE_BUTTON,
             GOTO_BUTTON: GOTO_BUTTON,
             EXPAND_BUTTON: EXPAND_BUTTON,
-            show: show,
+            showMenu: showMenu,
+            hideMenu: hideMenu,
+            showTablet: showTablet,
+            hideTablet: hideTablet,
             scale: scale,
             startExpandingTablet: startExpandingTablet,
             expandTablet: expandTablet,
@@ -654,7 +698,6 @@
             getTabletModelProperties: getTabletModelProperties,
             enable: enable,
             disable: disable,
-            hide: hide,
             setButtonActive: setButtonActive,
             buttonClicked: {
                 connect: connectButtonClicked
@@ -693,10 +736,22 @@
             tabletExpandTimer = null,
             tabletExpandStart;
 
+        function enterTabletUnavailable() {
+            if (ui) {
+                ui.hideTablet();
+            }
+        }
+
         function updateTabletUnavailable() {
             // Show tablet model if tablet proper has stopped being displayed.
             if (!HMD.showTablet) {
                 setState(TABLET_AVAILABLE);
+            }
+        }
+
+        function enterTabletAvailable() {
+            if (ui) {
+                ui.showTablet(false);
             }
         }
 
@@ -749,10 +804,9 @@
         }
 
         function enterTabletExpanded() {
-            var tabletModelProperties = ui.getTabletModelProperties(),
-                TABLET_ADDRESS_DIALOG = "hifi/tablet/TabletAddressDialog.qml";
+            var tabletModelProperties = ui.getTabletModelProperties();
 
-            //ui.hideTablet(); //////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ui.hideTablet();
 
             if (isGoto) {
                 tablet.loadQMLSource(TABLET_ADDRESS_DIALOG);
@@ -780,12 +834,12 @@
                 exit: null
             },
             TABLET_UNAVAILABLE: { // Tablet model not able to be displayed because proper tablet is open.
-                enter: null,
+                enter: enterTabletUnavailable,
                 update: updateTabletUnavailable,
                 exit: null
             },
             TABLET_AVAILABLE: { // Tablet model able to be displayed and available for action.
-                enter: null,
+                enter: enterTabletAvailable,
                 update: updateTabletAvailable,
                 exit: null
             },
@@ -836,7 +890,9 @@
         }
 
         function destroy() {
-            setState(TABLET_DISABLED);
+            if (machineState !== TABLET_DISABLED) {
+                setState(TABLET_DISABLED);
+            }
         }
 
         create();
@@ -886,6 +942,7 @@
             MIN_HAND_CAMERA_ANGLE_COS = Math.cos(Math.PI * MIN_HAND_CAMERA_ANGLE / DEGREES_180);
 
         function onButtonClicked(button) {
+            var state;
             switch (button) {
                 case ui.MUTE_BUTTON:
                     Audio.muted = !Audio.muted;
@@ -894,10 +951,20 @@
                     Users.toggleIgnoreRadius();
                     break;
                 case ui.GOTO_BUTTON:
-                    tabletState.setState(tabletState.TABLET_EXPANDING, { hand: menuHand, goto: true });
+                    state = tabletState.getState();
+                    if (state === tabletState.TABLET_AVAILABLE) {
+                        tabletState.setState(tabletState.TABLET_EXPANDING, { hand: menuHand, goto: true });
+                    } else if (state === tabletState.TABLET_UNAVAILABLE) {
+                        tablet.loadQMLSource(TABLET_ADDRESS_DIALOG);
+                    }
                     break;
                 case ui.EXPAND_BUTTON:
-                    tabletState.setState(tabletState.TABLET_EXPANDING, { hand: menuHand, goto: false });
+                    state = tabletState.getState();
+                    if (state === tabletState.TABLET_AVAILABLE) {
+                        tabletState.setState(tabletState.TABLET_EXPANDING, { hand: menuHand, goto: false });
+                    } else if (state === tabletState.TABLET_UNAVAILABLE) {
+                        tablet.gotoHomeScreen();
+                    }
                     break;
                 default:
                     error("Missing case: onButtonClicked");
@@ -933,16 +1000,16 @@
             Users.ignoreRadiusEnabledChanged.connect(onIgnoreRadiusEnabledChanged);
         }
 
-        function shouldShowProxy(hand) {
-            // Should show proxy if it would be oriented toward the camera.
+        function shouldShowMenu(hand) {
+            // Should show menu if it would be oriented toward the camera.
             var pose,
                 jointIndex,
                 handPosition,
                 handOrientation,
                 uiPositionAndOrientation,
-                proxyPosition,
-                proxyOrientation,
-                cameraToProxyDirection;
+                menuPosition,
+                menuOrientation,
+                cameraToMenuDirection;
 
             pose = Controller.getPoseValue(hand === LEFT_HAND ? Controller.Standard.LeftHand : Controller.Standard.RightHand);
             if (!pose.valid) {
@@ -954,27 +1021,26 @@
                 Vec3.multiplyQbyV(MyAvatar.orientation, MyAvatar.getAbsoluteJointTranslationInObjectFrame(jointIndex)));
             handOrientation = Quat.multiply(MyAvatar.orientation, MyAvatar.getAbsoluteJointRotationInObjectFrame(jointIndex));
             uiPositionAndOrientation = ui.getUIPositionAndRotation(hand);
-            proxyPosition = Vec3.sum(handPosition, Vec3.multiply(avatarScale,
+            menuPosition = Vec3.sum(handPosition, Vec3.multiply(avatarScale,
                 Vec3.multiplyQbyV(handOrientation, uiPositionAndOrientation.position)));
-            proxyOrientation = Quat.multiply(handOrientation, uiPositionAndOrientation.rotation);
-            cameraToProxyDirection = Vec3.normalize(Vec3.subtract(proxyPosition, Camera.position));
-            return Vec3.dot(cameraToProxyDirection, Quat.getForward(proxyOrientation)) > MIN_HAND_CAMERA_ANGLE_COS;
+            menuOrientation = Quat.multiply(handOrientation, uiPositionAndOrientation.rotation);
+            cameraToMenuDirection = Vec3.normalize(Vec3.subtract(menuPosition, Camera.position));
+            return Vec3.dot(cameraToMenuDirection, Quat.getForward(menuOrientation)) > MIN_HAND_CAMERA_ANGLE_COS;
         }
 
         function enterMenuHidden() {
             ui.disable();
-            ui.hide();
+            ui.hideMenu();
+            if (tabletState.getState() === tabletState.TABLET_AVAILABLE) {
+                ui.hideTablet();
+            }
         }
 
         function updateMenuHidden() {
-            // Don't show proxy if tablet is already displayed or in toolbar mode.
-            if (HMD.showTablet || tablet.toolbarMode) {
-                return;
-            }
             // Compare palm directions of hands with vectors from palms to camera.
-            if (shouldShowProxy(LEFT_HAND)) {
+            if (shouldShowMenu(LEFT_HAND)) {
                 setState(MENU_SHOWING, LEFT_HAND);
-            } else if (shouldShowProxy(RIGHT_HAND)) {
+            } else if (shouldShowMenu(RIGHT_HAND)) {
                 setState(MENU_SHOWING, RIGHT_HAND);
             }
         }
@@ -982,7 +1048,7 @@
         function scaleMenuDown() {
             var scaleFactor = (Date.now() - menuScaleStart) / MENU_SCALE_DURATION;
             if (scaleFactor < 1) {
-                ui.scale((1 - scaleFactor) * avatarScale);
+                ui.scale((1 - scaleFactor) * avatarScale, tabletState.getState() === tabletState.TABLET_AVAILABLE);
                 menuScaleTimer = Script.setTimeout(scaleMenuDown, MENU_SCALE_TIMEOUT);
                 return;
             }
@@ -996,12 +1062,6 @@
             menuScaleTimer = Script.setTimeout(scaleMenuDown, MENU_SCALE_TIMEOUT);
         }
 
-        function updateMenuHiding() {
-            if (HMD.showTablet) {
-                setState(MENU_HIDDEN);
-            }
-        }
-
         function exitMenuHiding() {
             if (menuScaleTimer) {
                 Script.clearTimeout(menuScaleTimer);
@@ -1009,15 +1069,15 @@
             }
         }
 
-        function scaleProxyUp() {
+        function scaleMenuUp() {
             var scaleFactor = (Date.now() - menuScaleStart) / MENU_SCALE_DURATION;
             if (scaleFactor < 1) {
-                ui.scale(scaleFactor * avatarScale);
-                menuScaleTimer = Script.setTimeout(scaleProxyUp, MENU_SCALE_TIMEOUT);
+                ui.scale(scaleFactor * avatarScale, tabletState.getState() === tabletState.TABLET_AVAILABLE);
+                menuScaleTimer = Script.setTimeout(scaleMenuUp, MENU_SCALE_TIMEOUT);
                 return;
             }
             menuScaleTimer = null;
-            ui.scale(avatarScale);
+            ui.scale(avatarScale, tabletState.getState() === tabletState.TABLET_AVAILABLE);
             setState(MENU_VISIBLE);
         }
 
@@ -1025,15 +1085,12 @@
             menuHand = hand;
             ui.setButtonActive(ui.MUTE_BUTTON, Audio.muted);
             ui.setButtonActive(ui.BUBBLE_BUTTON, Users.getIgnoreRadiusEnabled());
-            ui.show(hand);
-            menuScaleStart = Date.now();
-            menuScaleTimer = Script.setTimeout(scaleProxyUp, MENU_SCALE_TIMEOUT);
-        }
-
-        function updateMenuShowing() {
-            if (HMD.showTablet) {
-                setState(MENU_HIDDEN);
+            ui.showMenu(hand);
+            if (tabletState.getState() === tabletState.TABLET_AVAILABLE) {
+                ui.showTablet(true);
             }
+            menuScaleStart = Date.now();
+            menuScaleTimer = Script.setTimeout(scaleMenuUp, MENU_SCALE_TIMEOUT);
         }
 
         function exitMenuShowing() {
@@ -1048,13 +1105,8 @@
         }
 
         function updateMenuVisible() {
-            // Hide proxy if tablet has been displayed by other means.
-            if (HMD.showTablet) {
-                setState(MENU_HIDDEN);
-                return;
-            }
-            // Check that palm direction of proxy hand still less than maximum angle.
-            if (!shouldShowProxy(menuHand)) {
+            // Check that palm direction of menu hand still less than maximum angle.
+            if (!shouldShowMenu(menuHand)) {
                 setState(MENU_HIDING);
             }
         }
@@ -1072,12 +1124,12 @@
             },
             MENU_HIDING: { // Menu is reducing from MENU_VISIBLE to MENU_HIDDEN.
                 enter: enterMenuHiding,
-                update: updateMenuHiding,
+                update: null,
                 exit: exitMenuHiding
             },
             MENU_SHOWING: { // Menu is expanding from MENU_HIDDEN to MENU_VISIBLE.
                 enter: enterMenuShowing,
-                update: updateMenuShowing,
+                update: null,
                 exit: exitMenuShowing
             },
             MENU_VISIBLE: { // Menu is visible.
@@ -1121,7 +1173,9 @@
         }
 
         function destroy() {
-            setState(MENU_DISABLED);
+            if (machineState !== MENU_DISABLED) {
+                setState(MENU_DISABLED);
+            }
         }
 
         create();
