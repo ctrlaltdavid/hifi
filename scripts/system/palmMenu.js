@@ -932,7 +932,7 @@
             STATE_MACHINE,
             machineState = MENU_DISABLED,
             menuHand,
-            MENU_SCALE_DURATION = 150,
+            MENU_SCALE_DURATION = 250,
             MENU_SCALE_TIMEOUT = 20,
             menuScaleTimer = null,
             menuScaleStart,
