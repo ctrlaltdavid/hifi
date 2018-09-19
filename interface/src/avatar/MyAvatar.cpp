@@ -1964,15 +1964,8 @@ void MyAvatar::updateMotors() {
             // Fly in direction of left hand.
             motorRotation = cancelOutRoll(handOrientation);
         } else {
-            // non-hovering = walking: follow camera twist about vertical but not lift
-            // we decompose camera's rotation and store the twist part in motorRotation
-            // however, we need to perform the decomposition in the avatar-frame
-            // using the local UP axis and then transform back into world-frame
-            glm::quat orientation = getWorldOrientation();
-            glm::quat headOrientation = glm::inverse(orientation) * getMyHead()->getHeadOrientation(); // avatar-frame
-            glm::quat liftRotation;
-            swingTwistDecomposition(headOrientation, Vectors::UNIT_Y, liftRotation, motorRotation);
-            motorRotation = orientation * motorRotation;
+            // Walk in direction of left hand in x-z plane.
+            motorRotation = cancelOutRollAndPitch(handOrientation);
         }
 
         if (_isPushing || _isBraking || !_isBeingPushed) {
