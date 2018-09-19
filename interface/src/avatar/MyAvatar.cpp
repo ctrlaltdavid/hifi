@@ -1960,12 +1960,22 @@ void MyAvatar::updateMotors() {
     if (_motionBehaviors & AVATAR_MOTION_ACTION_MOTOR_ENABLED) {
         glm::quat handOrientation = getLeftPalmRotation() * LEFT_HAND_ZERO_ROT;
         if (_characterController.getState() == CharacterController::State::Hover ||
+                _characterController.getState() == CharacterController::State::Takeoff ||
+                _characterController.getState() == CharacterController::State::InAir ||
                 _characterController.computeCollisionGroup() == BULLET_COLLISION_GROUP_COLLISIONLESS) {
             // Fly in direction of left hand.
             motorRotation = cancelOutRoll(handOrientation);
         } else {
             // Walk in direction of left hand in x-z plane.
             motorRotation = cancelOutRollAndPitch(handOrientation);
+            // Jump up to fly if left hand pointing sufficiently upward and left joystick sufficiently forward.
+            const float COS_30_DEGREES = glm::cos(glm::radians(30.0f));
+            const float MIN_FLY_JOYSTICK = 0.6f;
+            if (glm::dot(handOrientation * Vectors::UNIT_NEG_Z, Vectors::UNIT_Y) > COS_30_DEGREES
+                && getDriveKey(TRANSLATE_Z) > MIN_FLY_JOYSTICK) {
+                    motorRotation = handOrientation;
+                    _characterController.jump();
+            }
         }
 
         if (_isPushing || _isBraking || !_isBeingPushed) {
@@ -2697,13 +2707,7 @@ void MyAvatar::updateActionMotor(float deltaTime) {
     // compute action input
     glm::vec3 forward = (getDriveKey(TRANSLATE_Z)) * IDENTITY_FORWARD;
     glm::vec3 right = (getDriveKey(TRANSLATE_X)) * IDENTITY_RIGHT;
-
     glm::vec3 direction = forward + right;
-    if (state == CharacterController::State::Hover ||
-            _characterController.computeCollisionGroup() == BULLET_COLLISION_GROUP_COLLISIONLESS) {
-        glm::vec3 up = (getDriveKey(TRANSLATE_Y)) * IDENTITY_UP;
-        direction += up;
-    }
 
     _wasPushing = _isPushing;
     float directionLength = glm::length(direction);
