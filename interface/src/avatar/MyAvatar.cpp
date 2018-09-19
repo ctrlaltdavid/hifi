@@ -1956,10 +1956,13 @@ void MyAvatar::updateMotors() {
         verticalMotorTimescale = INVALID_MOTOR_TIMESCALE;
     }
 
+    const glm::quat LEFT_HAND_ZERO_ROT(glm::quat(glm::radians(glm::vec3(90.0f, -90.0f, 0.0f))));
     if (_motionBehaviors & AVATAR_MOTION_ACTION_MOTOR_ENABLED) {
+        glm::quat handOrientation = getLeftPalmRotation() * LEFT_HAND_ZERO_ROT;
         if (_characterController.getState() == CharacterController::State::Hover ||
                 _characterController.computeCollisionGroup() == BULLET_COLLISION_GROUP_COLLISIONLESS) {
-            motorRotation = getMyHead()->getHeadOrientation();
+            // Fly in direction of left hand.
+            motorRotation = cancelOutRoll(handOrientation);
         } else {
             // non-hovering = walking: follow camera twist about vertical but not lift
             // we decompose camera's rotation and store the twist part in motorRotation
