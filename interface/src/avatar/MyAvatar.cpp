@@ -2713,31 +2713,47 @@ void MyAvatar::setRotationThreshold(float angleRadians) {
 
 void MyAvatar::updateOrientation(float deltaTime) {
 
-    //  Smoothly rotate body with arrow keys
-    float targetSpeed = getDriveKey(YAW) * _yawSpeed;
-    if (targetSpeed != 0.0f) {
-        const float ROTATION_RAMP_TIMESCALE = 0.1f;
-        float blend = deltaTime / ROTATION_RAMP_TIMESCALE;
+    auto headPose = getControllerPoseInAvatarFrame(controller::Action::HEAD);
+
+    float totalBodyYaw;
+    if (headPose.isValid()) {
+        //  Smoothly rotate body with arrow keys
+        float targetSpeed = getDriveKey(YAW) * _yawSpeed;
+        if (targetSpeed != 0.0f) {
+            const float ROTATION_RAMP_TIMESCALE = 0.1f;
+            float blend = deltaTime / ROTATION_RAMP_TIMESCALE;
+            if (blend > 1.0f) {
+                blend = 1.0f;
+            }
+            _bodyYawDelta = (1.0f - blend) * _bodyYawDelta + blend * targetSpeed;
+        } else if (_bodyYawDelta != 0.0f) {
+            // attenuate body rotation speed
+            const float ROTATION_DECAY_TIMESCALE = 0.05f;
+            float attenuation = 1.0f - deltaTime / ROTATION_DECAY_TIMESCALE;
+            if (attenuation < 0.0f) {
+                attenuation = 0.0f;
+            }
+            _bodyYawDelta *= attenuation;
+
+            float MINIMUM_ROTATION_RATE = 2.0f;
+            if (fabsf(_bodyYawDelta) < MINIMUM_ROTATION_RATE) {
+                _bodyYawDelta = 0.0f;
+            }
+        }
+        totalBodyYaw = _bodyYawDelta * deltaTime;
+    } else {
+        // Rotate avatar per mouse movement or key presses accumulated.
+        // More YAW accumulates with mouselook at higher game loop rates so we need to adjust for that.
+        const float GAME_LOOP_RATE_RAMP_TIMESCALE = 1.0f;
+        float blend = deltaTime / GAME_LOOP_RATE_RAMP_TIMESCALE;
         if (blend > 1.0f) {
             blend = 1.0f;
         }
-        _bodyYawDelta = (1.0f - blend) * _bodyYawDelta + blend * targetSpeed;
-    } else if (_bodyYawDelta != 0.0f) {
-        // attenuate body rotation speed
-        const float ROTATION_DECAY_TIMESCALE = 0.05f;
-        float attenuation = 1.0f - deltaTime / ROTATION_DECAY_TIMESCALE;
-        if (attenuation < 0.0f) {
-            attenuation = 0.0f;
-        }
-        _bodyYawDelta *= attenuation;
+        _avgGameLoopRate = (1.0f - blend) * _avgGameLoopRate + blend * qApp->getGameLoopRate();
 
-        float MINIMUM_ROTATION_RATE = 2.0f;
-        if (fabsf(_bodyYawDelta) < MINIMUM_ROTATION_RATE) {
-            _bodyYawDelta = 0.0f;
-        }
+        const float YAW_RATE = 120.0f;
+        totalBodyYaw = getDriveKey(YAW) * YAW_RATE / _avgGameLoopRate;
     }
-
-    float totalBodyYaw = _bodyYawDelta * deltaTime;
 
 
     // Comfort Mode: If you press any of the left/right rotation drive keys or input, you'll
@@ -2793,7 +2809,6 @@ void MyAvatar::updateOrientation(float deltaTime) {
     }
 
     Head* head = getHead();
-    auto headPose = getControllerPoseInAvatarFrame(controller::Action::HEAD);
     if (headPose.isValid()) {
         glm::quat localOrientation = headPose.rotation * Quaternions::Y_180;
         // these angles will be in radians
@@ -2805,8 +2820,10 @@ void MyAvatar::updateOrientation(float deltaTime) {
         head->setBasePitch(PITCH(euler));
         head->setBaseRoll(ROLL(euler));
     } else {
+        // Pitch head per mouse movement or key presses accumulated.
         head->setBaseYaw(0.0f);
-        head->setBasePitch(getHead()->getBasePitch() + getDriveKey(PITCH) * _pitchSpeed * deltaTime);
+        const float PITCH_RATE = 120.0f;
+        head->setBasePitch(getHead()->getBasePitch() + getDriveKey(PITCH) * PITCH_RATE / _avgGameLoopRate);
         head->setBaseRoll(0.0f);
     }
 }

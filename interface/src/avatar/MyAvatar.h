@@ -1891,6 +1891,8 @@ private:
     Setting::Handle<int> _avatarEntityCountSetting;
     std::vector<Setting::Handle<QUuid>> _avatarEntityIDSettings;
     std::vector<Setting::Handle<QByteArray>> _avatarEntityDataSettings;
+
+    float _avgGameLoopRate { 60.0f };
 };
 
 QScriptValue audioListenModeToScriptValue(QScriptEngine* engine, const AudioListenerMode& audioListenerMode);
