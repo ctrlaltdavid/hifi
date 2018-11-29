@@ -322,6 +322,8 @@ public:
     int getOtherAvatarsReplicaCount() { return DependencyManager::get<AvatarHashMap>()->getReplicaCount(); }
     void setOtherAvatarsReplicaCount(int count) { DependencyManager::get<AvatarHashMap>()->setReplicaCount(count); }
 
+    void updateRawMousePosition(int deltaX, int deltaY);
+
 #if defined(Q_OS_ANDROID)
     void beforeEnterBackground();
     void enterBackground();

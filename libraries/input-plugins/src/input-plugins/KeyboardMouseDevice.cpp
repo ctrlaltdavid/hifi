@@ -29,6 +29,9 @@ void KeyboardMouseDevice::pluginUpdate(float deltaTime, const controller::InputC
 
         _inputDevice->_axisStateMap[MOUSE_AXIS_X] = _lastCursor.x();
         _inputDevice->_axisStateMap[MOUSE_AXIS_Y] = _lastCursor.y();
+
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X] = _lastRawCursor.x();
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y] = _lastRawCursor.y();
     });
 
     // For touch event, we need to check that the last event is not too long ago
@@ -132,6 +135,10 @@ void KeyboardMouseDevice::wheelEvent(QWheelEvent* event) {
     _inputDevice->_axisStateMap[_inputDevice->makeInput(MOUSE_AXIS_WHEEL_Y_NEG).getChannel()] = (currentMove.y() < 0 ? -currentMove.y() : 0.0f);
 }
 
+void KeyboardMouseDevice::updateRawMousePosition(int deltaX, int deltaY) {
+    _lastRawCursor += QPoint(deltaX, deltaY);
+}
+
 glm::vec2 evalAverageTouchPoints(const QList<QTouchEvent::TouchPoint>& points) {
     glm::vec2 averagePoint(0.0f);
     if (points.count() > 0) {
@@ -205,6 +212,10 @@ controller::Input KeyboardMouseDevice::InputDevice::makeInput(Qt::MouseButton co
 }
 
 controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevice::MouseAxisChannel axis) const {
+    return controller::Input(_deviceID, axis, controller::ChannelType::AXIS);
+}
+
+controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevice::MouseRawAxisChannel axis) const {
     return controller::Input(_deviceID, axis, controller::ChannelType::AXIS);
 }
 
@@ -320,6 +331,9 @@ controller::Input::NamedVector KeyboardMouseDevice::InputDevice::getAvailableInp
 
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_X), "MouseX"));
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_Y), "MouseY"));
+
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_X), "MouseRawX"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_Y), "MouseRawY"));
 
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_WHEEL_Y_POS), "MouseWheelRight"));
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_WHEEL_Y_NEG), "MouseWheelLeft"));

@@ -599,6 +599,19 @@ public:
                     Midi::USBchanged();                // re-scan the MIDI bus
                 }
             }
+
+            if (message->message == WM_INPUT) {
+                static RAWINPUT inputBuffer;
+                static UINT rawInputSize = sizeof(inputBuffer);
+                auto result = GetRawInputData((HRAWINPUT)message->lParam, RID_INPUT, &inputBuffer, &rawInputSize, 
+                    sizeof(RAWINPUTHEADER));
+                if (inputBuffer.header.dwType == RIM_TYPEMOUSE) {
+                    int deltaX = inputBuffer.data.mouse.lLastX;
+                    int deltaY = inputBuffer.data.mouse.lLastY;
+                    qApp->updateRawMousePosition(deltaX, deltaY);
+                    return true;
+                }
+            }
         }
         return false;
     }
@@ -1776,6 +1789,28 @@ Application::Application(int& argc, char** argv, QElapsedTimer& startupTimer, bo
         return 0;
 #endif
     });
+
+#ifdef Q_OS_WIN
+    // Set up raw mouse controller input. This causes WM_INPUT events containing raw mouse data to be generated.
+
+#ifndef HID_USAGE_PAGE_GENERIC
+#define HID_USAGE_PAGE_GENERIC         ((USHORT) 0x01)
+#endif
+#ifndef HID_USAGE_GENERIC_MOUSE
+#define HID_USAGE_GENERIC_MOUSE        ((USHORT) 0x02)
+#endif
+
+    RAWINPUTDEVICE device;
+    device.usUsagePage = HID_USAGE_PAGE_GENERIC;
+    device.usUsage = HID_USAGE_GENERIC_MOUSE;
+    device.dwFlags = 0; // Generate events if the application or one of its windows has focus.
+    device.hwndTarget = 0;
+
+    auto result = RegisterRawInputDevices(&device, 1, sizeof device);
+    if (!result) {
+        qWarning(interfaceapp) << "Raw mouse input not enabled";
+    }
+#endif
 
     // Setup the _keyboardMouseDevice, _touchscreenDevice, _touchscreenVirtualPadDevice and the user input mapper with the default bindings
     userInputMapper->registerDevice(_keyboardMouseDevice->getInputDevice());
@@ -8761,6 +8796,10 @@ void Application::copyToClipboard(const QString& text) {
 
     // assume that the address is being copied because the user wants a shareable address
     QApplication::clipboard()->setText(text);
+}
+
+void Application::updateRawMousePosition(int deltaX, int deltaY) {
+    _keyboardMouseDevice->updateRawMousePosition(deltaX, deltaY);
 }
 
 #if defined(Q_OS_ANDROID)
