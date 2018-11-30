@@ -113,8 +113,16 @@ void KeyboardMouseDevice::pluginUpdate(float deltaTime, const controller::InputC
         _inputDevice->_axisStateMap[MOUSE_AXIS_X] = _lastCursor.x();
         _inputDevice->_axisStateMap[MOUSE_AXIS_Y] = _lastCursor.y();
 
-        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X] = _lastRawCursor.x();
-        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y] = _lastRawCursor.y();
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X] = _rawCursor.x();
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y] = _rawCursor.y();
+
+        auto deltaRawCursor = _rawCursor - _lastRawCursor;
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X_POS] = (deltaRawCursor.x() > 0 ? deltaRawCursor.x() : 0.0f);
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X_NEG] = (deltaRawCursor.x() < 0 ? -deltaRawCursor.x() : 0.0f);
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y_POS] = (deltaRawCursor.y() < 0 ? -deltaRawCursor.y() : 0.0f);
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y_NEG] = (deltaRawCursor.y() > 0 ? deltaRawCursor.y() : 0.0f);
+
+        _lastRawCursor = _rawCursor;
     });
 
     // For touch event, we need to check that the last event is not too long ago
@@ -219,7 +227,7 @@ void KeyboardMouseDevice::wheelEvent(QWheelEvent* event) {
 }
 
 void KeyboardMouseDevice::updateRawMousePosition(int deltaX, int deltaY) {
-    _lastRawCursor += QPoint(deltaX, deltaY);
+    _rawCursor += QPoint(deltaX, deltaY);
 }
 
 glm::vec2 evalAverageTouchPoints(const QList<QTouchEvent::TouchPoint>& points) {
@@ -414,6 +422,11 @@ controller::Input::NamedVector KeyboardMouseDevice::InputDevice::getAvailableInp
 
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_X), "MouseX"));
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_Y), "MouseY"));
+
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_X_POS), "MouseRawMoveRight"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_X_NEG), "MouseRawMoveLeft"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_Y_POS), "MouseRawMoveUp"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_Y_NEG), "MouseRawMoveDown"));
 
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_X), "MouseRawX"));
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_Y), "MouseRawY"));

@@ -56,7 +56,11 @@ public:
     };
 
     enum MouseRawAxisChannel {
-        MOUSE_RAW_AXIS_X = MOUSE_AXIS_WHEEL_X_NEG + 1,
+        MOUSE_RAW_AXIS_X_POS = MOUSE_AXIS_WHEEL_X_NEG + 1,
+        MOUSE_RAW_AXIS_X_NEG,
+        MOUSE_RAW_AXIS_Y_POS,
+        MOUSE_RAW_AXIS_Y_NEG,
+        MOUSE_RAW_AXIS_X,
         MOUSE_RAW_AXIS_Y,
     };
 
@@ -134,6 +138,7 @@ public:
 
 protected:
     QPoint _lastCursor;
+    QPoint _rawCursor;
     QPoint _lastRawCursor;
     QPoint _mousePressPos;
     quint64 _mousePressTime;
