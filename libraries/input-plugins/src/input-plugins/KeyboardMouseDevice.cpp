@@ -363,6 +363,18 @@ controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevic
  *       new x-coordinate value.</td></tr>
  *     <tr><td><code>MouseY</code></td><td>number</td><td>number</td><td>The mouse y-coordinate changed. The data value is its 
  *       new y-coordinate value.</td></tr>
+ *     <tr><td><code>MouseRawMoveRight</code></td><td>number</td><td>number</td><td>The mouse moved right, as reported by the 
+ *       hardware mouse driver. May be higher resolution and occur more often than <code>MouseMoveRight</code>.</td></tr>
+ *     <tr><td><code>MouseRawMoveLeft</code></td><td>number</td><td>number</td><td>The mouse moved left, as reported by the 
+ *       hardware mouse driver. May be higher resolution and occur more often than <code>MouseMoveLeft</code>.</td></tr>
+ *     <tr><td><code>MouseRawMoveUp</code></td><td>number</td><td>number</td><td>The mouse moved up, as reported by the 
+ *       hardware mouse driver. May be higher resolution and occur more often than <code>MouseMoveUp</code>.</td></tr>
+ *     <tr><td><code>MouseRawMoveDown</code></td><td>number</td><td>number</td><td>The mouse moved down, as reported by the 
+ *       hardware mouse driver. May be higher resolution and occur more often than <code>MouseMoveDown</code>.</td></tr>
+ *     <tr><td><code>MouseRawX</code></td><td>number</td><td>number</td><td>The raw mouse x-coordinate changed. The data value 
+ *       is its new raw x-coordinate value, unrelated to screen coordinates.</td></tr>
+ *     <tr><td><code>MouseRawY</code></td><td>number</td><td>number</td><td>The raw mouse y-coordinate changed. The data value 
+ *       is its new raw y-coordinate value, unrelated to screen coordinates.</td></tr>
  *     <tr><td><code>MouseWheelRight</code></td><td>number</td><td>number</td><td>The mouse wheel rotated left. The data value 
  *       is the number of units rotated (typically <code>1.0</code>).</td></tr>
  *     <tr><td><code>MouseWheelLeft</code></td><td>number</td><td>number</td><td>The mouse wheel rotated left. The data value 
