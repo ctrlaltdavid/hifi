@@ -72,6 +72,10 @@ public:
     };
 
     // Plugin functions
+#ifdef Q_OS_WIN
+    virtual void init() override;
+    virtual void deinit() override;
+#endif
     bool isSupported() const override { return true; }
     const QString getName() const override { return NAME; }
 
@@ -123,6 +127,10 @@ protected:
 
 public:
     const std::shared_ptr<InputDevice>& getInputDevice() const { return _inputDevice; }
+
+#ifdef Q_OS_WIN
+    QAbstractNativeEventFilter& getNativeEventFilter();
+#endif
 
 protected:
     QPoint _lastCursor;

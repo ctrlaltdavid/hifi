@@ -18,8 +18,91 @@
 #include <PathUtils.h>
 #include <NumericalConstants.h>
 
+#ifdef Q_OS_WIN
+#include <QAbstractNativeEventFilter>
+#include <Windows.h>
+#endif
+
 const char* KeyboardMouseDevice::NAME = "Keyboard/Mouse";
 bool KeyboardMouseDevice::_enableTouch = true;
+
+
+#ifdef Q_OS_WIN
+
+class KeyboardMouseDeviceNativeEventFilter : public QAbstractNativeEventFilter {
+public:
+    static KeyboardMouseDeviceNativeEventFilter& getInstance() {
+        static KeyboardMouseDeviceNativeEventFilter staticInstance;
+        return staticInstance;
+    }
+
+    static void setKeyboardMouseDevice(KeyboardMouseDevice* keyboardMouseDevice) {
+        _keyboardMouseDevice = keyboardMouseDevice;
+    }
+
+    bool nativeEventFilter(const QByteArray &eventType, void* msg, long* result) Q_DECL_OVERRIDE {
+        if (_keyboardMouseDevice == nullptr) {
+            return false;
+        }
+
+        if (eventType == "windows_generic_MSG") {
+            MSG* message = (MSG*)msg;
+            if (message->message == WM_INPUT) {
+                static RAWINPUT inputBuffer;
+                static UINT rawInputSize = sizeof(inputBuffer);
+                auto result = GetRawInputData((HRAWINPUT)message->lParam, RID_INPUT, &inputBuffer, &rawInputSize,
+                    sizeof(RAWINPUTHEADER));
+                if (inputBuffer.header.dwType == RIM_TYPEMOUSE) {
+                    int deltaX = inputBuffer.data.mouse.lLastX;
+                    int deltaY = inputBuffer.data.mouse.lLastY;
+                    _keyboardMouseDevice->updateRawMousePosition(deltaX, deltaY);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+protected:
+    static KeyboardMouseDevice* KeyboardMouseDeviceNativeEventFilter::_keyboardMouseDevice;  // TODO: Initialize to nullptr?
+};
+
+KeyboardMouseDevice* KeyboardMouseDeviceNativeEventFilter::_keyboardMouseDevice;
+
+QAbstractNativeEventFilter& KeyboardMouseDevice::getNativeEventFilter() {
+    return KeyboardMouseDeviceNativeEventFilter::getInstance();
+}
+
+void KeyboardMouseDevice::init() {
+    // Set up raw mouse controller input. This causes WM_INPUT events containing raw mouse data to be generated.
+
+#ifndef HID_USAGE_PAGE_GENERIC
+#define HID_USAGE_PAGE_GENERIC ((USHORT) 0x01)
+#endif
+#ifndef HID_USAGE_GENERIC_MOUSE
+#define HID_USAGE_GENERIC_MOUSE ((USHORT) 0x02)
+#endif
+
+    RAWINPUTDEVICE device;
+    device.usUsagePage = HID_USAGE_PAGE_GENERIC;
+    device.usUsage = HID_USAGE_GENERIC_MOUSE;
+    device.dwFlags = 0; // Generate events if the application or one of its windows has focus.
+    device.hwndTarget = 0;
+
+    auto result = RegisterRawInputDevices(&device, 1, sizeof device);
+    if (!result) {
+        qWarning() << "Raw mouse input not enabled";
+    }
+
+    KeyboardMouseDeviceNativeEventFilter::setKeyboardMouseDevice(this);
+}
+
+void KeyboardMouseDevice::deinit() {
+    KeyboardMouseDeviceNativeEventFilter::setKeyboardMouseDevice(nullptr);
+}
+
+#endif
+
 
 void KeyboardMouseDevice::pluginUpdate(float deltaTime, const controller::InputCalibrationData& inputCalibrationData) {
     auto userInputMapper = DependencyManager::get<controller::UserInputMapper>();
