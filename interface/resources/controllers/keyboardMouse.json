@@ -8,8 +8,8 @@
 
         { "comment" : "Mouse turn need to be small continuous increments",
           "from": { "makeAxis" : [
-                [ "Keyboard.MouseRawMoveLeft" ],
-                [ "Keyboard.MouseRawMoveRight" ]
+                [ "Keyboard.MouseMoveLeft" ],
+                [ "Keyboard.MouseMoveRight" ]
             ]
           },
           "when": [ "Application.InHMD", "Application.SnapTurn", "Keyboard.RightMouseButton" ],
@@ -121,7 +121,7 @@
           "to": "Actions.Yaw"
         },
         
-        { "from": { "makeAxis" : ["Keyboard.MouseMoveLeft", "Keyboard.MouseMoveRight"] },
+        { "from": { "makeAxis" : ["Keyboard.MouseRawMoveLeft", "Keyboard.MouseRawMoveRight"] },
           "when": "Keyboard.RightMouseButton",
           "to": "Actions.DeltaYaw",
           "filters":
