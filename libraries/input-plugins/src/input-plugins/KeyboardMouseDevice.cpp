@@ -18,8 +18,91 @@
 #include <PathUtils.h>
 #include <NumericalConstants.h>
 
+#ifdef Q_OS_WIN
+#include <QAbstractNativeEventFilter>
+#include <Windows.h>
+#endif
+
 const char* KeyboardMouseDevice::NAME = "Keyboard/Mouse";
 bool KeyboardMouseDevice::_enableTouch = true;
+
+
+#ifdef Q_OS_WIN
+
+class KeyboardMouseDeviceNativeEventFilter : public QAbstractNativeEventFilter {
+public:
+    static KeyboardMouseDeviceNativeEventFilter& getInstance() {
+        static KeyboardMouseDeviceNativeEventFilter staticInstance;
+        return staticInstance;
+    }
+
+    static void setKeyboardMouseDevice(KeyboardMouseDevice* keyboardMouseDevice) {
+        _keyboardMouseDevice = keyboardMouseDevice;
+    }
+
+    bool nativeEventFilter(const QByteArray &eventType, void* msg, long* result) Q_DECL_OVERRIDE {
+        if (_keyboardMouseDevice == nullptr) {
+            return false;
+        }
+
+        if (eventType == "windows_generic_MSG") {
+            MSG* message = (MSG*)msg;
+            if (message->message == WM_INPUT) {
+                static RAWINPUT inputBuffer;
+                static UINT rawInputSize = sizeof(inputBuffer);
+                auto result = GetRawInputData((HRAWINPUT)message->lParam, RID_INPUT, &inputBuffer, &rawInputSize,
+                    sizeof(RAWINPUTHEADER));
+                if (inputBuffer.header.dwType == RIM_TYPEMOUSE) {
+                    int deltaX = inputBuffer.data.mouse.lLastX;
+                    int deltaY = inputBuffer.data.mouse.lLastY;
+                    _keyboardMouseDevice->updateRawMousePosition(deltaX, deltaY);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+protected:
+    static KeyboardMouseDevice* KeyboardMouseDeviceNativeEventFilter::_keyboardMouseDevice;  // TODO: Initialize to nullptr?
+};
+
+KeyboardMouseDevice* KeyboardMouseDeviceNativeEventFilter::_keyboardMouseDevice;
+
+QAbstractNativeEventFilter& KeyboardMouseDevice::getNativeEventFilter() {
+    return KeyboardMouseDeviceNativeEventFilter::getInstance();
+}
+
+void KeyboardMouseDevice::init() {
+    // Set up raw mouse controller input. This causes WM_INPUT events containing raw mouse data to be generated.
+
+#ifndef HID_USAGE_PAGE_GENERIC
+#define HID_USAGE_PAGE_GENERIC ((USHORT) 0x01)
+#endif
+#ifndef HID_USAGE_GENERIC_MOUSE
+#define HID_USAGE_GENERIC_MOUSE ((USHORT) 0x02)
+#endif
+
+    RAWINPUTDEVICE device;
+    device.usUsagePage = HID_USAGE_PAGE_GENERIC;
+    device.usUsage = HID_USAGE_GENERIC_MOUSE;
+    device.dwFlags = 0; // Generate events if the application or one of its windows has focus.
+    device.hwndTarget = 0;
+
+    auto result = RegisterRawInputDevices(&device, 1, sizeof device);
+    if (!result) {
+        qWarning() << "Raw mouse input not enabled";
+    }
+
+    KeyboardMouseDeviceNativeEventFilter::setKeyboardMouseDevice(this);
+}
+
+void KeyboardMouseDevice::deinit() {
+    KeyboardMouseDeviceNativeEventFilter::setKeyboardMouseDevice(nullptr);
+}
+
+#endif
+
 
 void KeyboardMouseDevice::pluginUpdate(float deltaTime, const controller::InputCalibrationData& inputCalibrationData) {
     auto userInputMapper = DependencyManager::get<controller::UserInputMapper>();
@@ -29,6 +112,17 @@ void KeyboardMouseDevice::pluginUpdate(float deltaTime, const controller::InputC
 
         _inputDevice->_axisStateMap[MOUSE_AXIS_X] = _lastCursor.x();
         _inputDevice->_axisStateMap[MOUSE_AXIS_Y] = _lastCursor.y();
+
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X] = _rawCursor.x();
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y] = _rawCursor.y();
+
+        auto deltaRawCursor = _rawCursor - _lastRawCursor;
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X_POS] = (deltaRawCursor.x() > 0 ? deltaRawCursor.x() : 0.0f);
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X_NEG] = (deltaRawCursor.x() < 0 ? -deltaRawCursor.x() : 0.0f);
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y_POS] = (deltaRawCursor.y() < 0 ? -deltaRawCursor.y() : 0.0f);
+        _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y_NEG] = (deltaRawCursor.y() > 0 ? deltaRawCursor.y() : 0.0f);
+
+        _lastRawCursor = _rawCursor;
     });
 
     // For touch event, we need to check that the last event is not too long ago
@@ -132,6 +226,10 @@ void KeyboardMouseDevice::wheelEvent(QWheelEvent* event) {
     _inputDevice->_axisStateMap[_inputDevice->makeInput(MOUSE_AXIS_WHEEL_Y_NEG).getChannel()] = (currentMove.y() < 0 ? -currentMove.y() : 0.0f);
 }
 
+void KeyboardMouseDevice::updateRawMousePosition(int deltaX, int deltaY) {
+    _rawCursor += QPoint(deltaX, deltaY);
+}
+
 glm::vec2 evalAverageTouchPoints(const QList<QTouchEvent::TouchPoint>& points) {
     glm::vec2 averagePoint(0.0f);
     if (points.count() > 0) {
@@ -208,6 +306,10 @@ controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevic
     return controller::Input(_deviceID, axis, controller::ChannelType::AXIS);
 }
 
+controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevice::MouseRawAxisChannel axis) const {
+    return controller::Input(_deviceID, axis, controller::ChannelType::AXIS);
+}
+
 controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevice::TouchAxisChannel axis) const {
     return controller::Input(_deviceID, axis, controller::ChannelType::AXIS);
 }
@@ -261,6 +363,22 @@ controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevic
  *       new x-coordinate value.</td></tr>
  *     <tr><td><code>MouseY</code></td><td>number</td><td>number</td><td>The mouse y-coordinate changed. The data value is its 
  *       new y-coordinate value.</td></tr>
+ *     <tr><td><code>MouseRawMoveRight</code></td><td>number</td><td>number</td><td>The mouse moved right, as reported by the 
+ *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than 
+ *       <code>MouseMoveRight</code>.</td></tr>
+ *     <tr><td><code>MouseRawMoveLeft</code></td><td>number</td><td>number</td><td>The mouse moved left, as reported by the 
+ *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than 
+ *       <code>MouseMoveLeft</code>.</td></tr>
+ *     <tr><td><code>MouseRawMoveUp</code></td><td>number</td><td>number</td><td>The mouse moved up, as reported by the 
+ *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than 
+ *       <code>MouseMoveUp</code>.</td></tr>
+ *     <tr><td><code>MouseRawMoveDown</code></td><td>number</td><td>number</td><td>The mouse moved down, as reported by the 
+ *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than 
+ *       <code>MouseMoveDown</code>.</td></tr>
+ *     <tr><td><code>MouseRawX</code></td><td>number</td><td>number</td><td>The raw mouse x-coordinate changed, when Interface 
+ *       has focus. The data value is its new raw x-coordinate value, unrelated to screen coordinates.</td></tr>
+ *     <tr><td><code>MouseRawY</code></td><td>number</td><td>number</td><td>The raw mouse y-coordinate changed,  when Interface 
+ *       has focus. The data value is its new raw y-coordinate value, unrelated to screen coordinates.</td></tr>
  *     <tr><td><code>MouseWheelRight</code></td><td>number</td><td>number</td><td>The mouse wheel rotated left. The data value 
  *       is the number of units rotated (typically <code>1.0</code>).</td></tr>
  *     <tr><td><code>MouseWheelLeft</code></td><td>number</td><td>number</td><td>The mouse wheel rotated left. The data value 
@@ -320,6 +438,14 @@ controller::Input::NamedVector KeyboardMouseDevice::InputDevice::getAvailableInp
 
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_X), "MouseX"));
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_Y), "MouseY"));
+
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_X_POS), "MouseRawMoveRight"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_X_NEG), "MouseRawMoveLeft"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_Y_POS), "MouseRawMoveUp"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_Y_NEG), "MouseRawMoveDown"));
+
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_X), "MouseRawX"));
+        availableInputs.append(Input::NamedPair(makeInput(MOUSE_RAW_AXIS_Y), "MouseRawY"));
 
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_WHEEL_Y_POS), "MouseWheelRight"));
         availableInputs.append(Input::NamedPair(makeInput(MOUSE_AXIS_WHEEL_Y_NEG), "MouseWheelLeft"));
