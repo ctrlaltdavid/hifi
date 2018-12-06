@@ -95,19 +95,19 @@
                 {
                     x: -0.01, // Distance across hand.
                     y: 0.08, // Distance from joint.
-                    z: 0.06 // Distance above palm.
+                    z: -0.06 // Distance below palm.
                 },
                 {
                     x: 0.01, // Distance across hand.
                     y: 0.08, // Distance from joint.
-                    z: 0.06 // Distance above palm.
+                    z: -0.06 // Distance below palm.
                 }
             ],
             DEGREES_180 = 180,
-            MINI_PICTH = 40,
+            MINI_PITCH = -40,
             MINI_ROTATIONS = [
-                Quat.fromVec3Degrees({ x: 0, y: DEGREES_180 - MINI_PICTH, z: 90 }),
-                Quat.fromVec3Degrees({ x: 0, y: DEGREES_180 + MINI_PICTH, z: -90 })
+                Quat.fromVec3Degrees({ x: 0, y: -MINI_PITCH, z: 90 }),
+                Quat.fromVec3Degrees({ x: 0, y: MINI_PITCH, z: -90 })
             ],
 
             // UI overlay.
@@ -668,7 +668,7 @@
                 // Mini tablet aimed toward camera?
                 medialHandVector = Vec3.multiplyQbyV(handOrientation, Vec3.UNIT_Y);
                 lateralHandVector = Vec3.multiplyQbyV(handOrientation, hand === LEFT_HAND ? Vec3.UNIT_X : Vec3.UNIT_NEG_X);
-                normalHandVector = Vec3.multiplyQbyV(handOrientation, Vec3.UNIT_Z);
+                normalHandVector = Vec3.multiplyQbyV(handOrientation, Vec3.UNIT_NEG_Z);
                 medialDot = Vec3.dot(medialHandVector, miniToCameraDirection);
                 lateralDot = Vec3.dot(lateralHandVector, miniToCameraDirection);
                 normalDot = Vec3.dot(normalHandVector, miniToCameraDirection);
