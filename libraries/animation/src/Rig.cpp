@@ -1184,7 +1184,6 @@ void Rig::updateAnimations(float deltaTime, const glm::mat4& rootTransform, cons
         _internalPoseSet._relativePoses = _animNode->evaluate(_animVars, context, deltaTime, triggersOut);
         if (_networkNode) {
             // Manually blending networkPoseSet with internalPoseSet.
-            float alpha = 1.0f;
             const float FRAMES_PER_SECOND = 30.0f;
             const float TOTAL_BLEND_FRAMES = 6.0f;
             const float TOTAL_BLEND_TIME = TOTAL_BLEND_FRAMES / FRAMES_PER_SECOND;
@@ -1192,10 +1191,14 @@ void Rig::updateAnimations(float deltaTime, const glm::mat4& rootTransform, cons
             if (_sendNetworkNode) {
                 _networkPoseSet._relativePoses = _networkNode->evaluate(_networkVars, context, deltaTime, networkTriggersOut);
                 _networkAnimState.blendTime += deltaTime;
-                alpha = _computeNetworkAnimation ? (_networkAnimState.blendTime / TOTAL_BLEND_TIME) : (1.0f - (_networkAnimState.blendTime / TOTAL_BLEND_TIME));
-                alpha = glm::clamp(alpha, 0.0f, 1.0f);
-                for (size_t i = 0; i < _networkPoseSet._relativePoses.size(); i++) {
-                    _networkPoseSet._relativePoses[i].blend(_internalPoseSet._relativePoses[i], alpha);
+                // Pose sets may be different sizes (e.g., 0) during start-up.
+                if (_networkPoseSet._relativePoses.size() == _internalPoseSet._relativePoses.size()) {
+                    float alpha = _computeNetworkAnimation ? (_networkAnimState.blendTime / TOTAL_BLEND_TIME) 
+                        : (1.0f - (_networkAnimState.blendTime / TOTAL_BLEND_TIME));
+                    alpha = glm::clamp(alpha, 0.0f, 1.0f);
+                    for (size_t i = 0; i < _networkPoseSet._relativePoses.size(); i++) {
+                        _networkPoseSet._relativePoses[i].blend(_internalPoseSet._relativePoses[i], alpha);
+                    }
                 }
             }
         }
