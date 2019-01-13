@@ -212,7 +212,11 @@ void ModelOverlay::setProperties(const QVariantMap& properties) {
     }
     if (dimensions.isValid()) {
         _scaleToFit = true;
-        setDimensions(vec3FromVariant(dimensions));
+        glm::vec3 size = vec3FromVariant(dimensions);
+        // Don't allow a zero or negative dimension component to reach the renderTransform.
+        const float MIN_DIMENSION = 0.0001f;
+        size = glm::max(size, MIN_DIMENSION);
+        setDimensions(size);
     } else if (scale.isValid()) {
         // if "scale" property is set but "dimensions" is not.
         // do NOT scale to fit.
