@@ -55,8 +55,17 @@ public:
         MOUSE_AXIS_WHEEL_X_NEG,
     };
 
+    enum MouseRawAxisChannel {
+        MOUSE_RAW_AXIS_X_POS = MOUSE_AXIS_WHEEL_X_NEG + 1,
+        MOUSE_RAW_AXIS_X_NEG,
+        MOUSE_RAW_AXIS_Y_POS,
+        MOUSE_RAW_AXIS_Y_NEG,
+        MOUSE_RAW_AXIS_X,
+        MOUSE_RAW_AXIS_Y,
+    };
+
     enum TouchAxisChannel {
-        TOUCH_AXIS_X_POS = MOUSE_AXIS_WHEEL_X_NEG + 1,
+        TOUCH_AXIS_X_POS = MOUSE_RAW_AXIS_Y + 1,
         TOUCH_AXIS_X_NEG,
         TOUCH_AXIS_Y_POS,
         TOUCH_AXIS_Y_NEG,
@@ -67,6 +76,10 @@ public:
     };
 
     // Plugin functions
+#ifdef Q_OS_WIN
+    virtual void init() override;
+    virtual void deinit() override;
+#endif
     bool isSupported() const override { return true; }
     const QString getName() const override { return NAME; }
 
@@ -89,6 +102,8 @@ public:
 
     static void enableTouch(bool enableTouch) { _enableTouch = enableTouch; }
 
+    void updateRawMousePosition(int deltaX, int deltaY);
+
     static const char* NAME;
 
 protected:
@@ -107,6 +122,7 @@ protected:
         controller::Input makeInput(Qt::Key code) const;
         controller::Input makeInput(Qt::MouseButton code, bool clicked = false) const;
         controller::Input makeInput(MouseAxisChannel axis) const;
+        controller::Input makeInput(MouseRawAxisChannel axis) const;
         controller::Input makeInput(TouchAxisChannel axis) const;
         controller::Input makeInput(TouchButtonChannel button) const;
 
@@ -116,9 +132,15 @@ protected:
 public:
     const std::shared_ptr<InputDevice>& getInputDevice() const { return _inputDevice; }
 
+#ifdef Q_OS_WIN
+    QAbstractNativeEventFilter& getNativeEventFilter();
+#endif
+
 protected:
     QPoint _lastCursor;
     QPoint _previousCursor;
+    QPoint _lastRawCursor;
+    QPoint _previousRawCursor;
     QPoint _mousePressPos;
     quint64 _mousePressTime;
     bool _clickDeadspotActive;

@@ -2976,6 +2976,9 @@ void Application::initializeUi() {
     foreach(auto inputPlugin, PluginManager::getInstance()->getInputPlugins()) {
         if (KeyboardMouseDevice::NAME == inputPlugin->getName()) {
             _keyboardMouseDevice = std::dynamic_pointer_cast<KeyboardMouseDevice>(inputPlugin);
+#ifdef Q_OS_WIN
+            installNativeEventFilter(&_keyboardMouseDevice->getNativeEventFilter());
+#endif
         }
         if (TouchscreenDevice::NAME == inputPlugin->getName()) {
             _touchscreenDevice = std::dynamic_pointer_cast<TouchscreenDevice>(inputPlugin);
