@@ -315,12 +315,14 @@ void PluginManager::shutdown() {
         if (inputPlugin->isActive()) {
             inputPlugin->deactivate();
         }
+        inputPlugin->deinit();
     }
 
-    for (auto displayPlugins : getDisplayPlugins()) {
-        if (displayPlugins->isActive()) {
-            displayPlugins->deactivate();
+    for (auto displayPlugin : getDisplayPlugins()) {
+        if (displayPlugin->isActive()) {
+            displayPlugin->deactivate();
         }
+        displayPlugin->deinit();
     }
 
     auto loadedPlugins = getLoadedPlugins();
