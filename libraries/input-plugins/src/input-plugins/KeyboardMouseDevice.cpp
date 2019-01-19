@@ -21,6 +21,9 @@
 #ifdef Q_OS_WIN
 #include <QAbstractNativeEventFilter>
 #include <Windows.h>
+#else
+#include <QCursor>
+#include <QApplication>
 #endif
 
 const char* KeyboardMouseDevice::NAME = "Keyboard/Mouse";
@@ -64,7 +67,7 @@ public:
     }
 
 protected:
-    static KeyboardMouseDevice* KeyboardMouseDeviceNativeEventFilter::_keyboardMouseDevice;  // TODO: Initialize to nullptr?
+    static KeyboardMouseDevice* KeyboardMouseDeviceNativeEventFilter::_keyboardMouseDevice;
 };
 
 KeyboardMouseDevice* KeyboardMouseDeviceNativeEventFilter::_keyboardMouseDevice;
@@ -125,6 +128,13 @@ void KeyboardMouseDevice::pluginUpdate(float deltaTime, const controller::InputC
         updateDeltaAxisValue(MOUSE_AXIS_Y_POS, currentMove.y() < 0 ? -currentMove.y() : 0.0f);
         updateDeltaAxisValue(MOUSE_AXIS_Y_NEG, currentMove.y() > 0 ? currentMove.y() : 0.0f);
         _previousCursor = _lastCursor;
+
+#ifndef Q_OS_WIN
+        // Emulate Windows' raw cursor behavior.
+        if (QApplication::activeWindow() != nullptr) {
+            _lastRawCursor = QCursor::pos();
+        }
+#endif
 
         _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_X].value = _lastRawCursor.x();
         _inputDevice->_axisStateMap[MOUSE_RAW_AXIS_Y].value = _lastRawCursor.y();
@@ -373,25 +383,25 @@ controller::Input KeyboardMouseDevice::InputDevice::makeInput(KeyboardMouseDevic
  *     <tr><td><code>MouseRawMoveRight</code></td><td>number</td><td>number</td><td>The mouse moved right, as reported by the
  *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than
  *       <code>MouseMoveRight</code>.<br />
- *       Windows-only; value is <code>undefined</code> on other OSes.</td></tr>
+ *       Raw values from the hardware mosue driver are provided on Windows only; values on other OSes are emulated.</td></tr>
  *     <tr><td><code>MouseRawMoveLeft</code></td><td>number</td><td>number</td><td>The mouse moved left, as reported by the
  *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than
  *       <code>MouseMoveLeft</code>.<br />
- *       Windows-only; value is <code>undefined</code> on other OSes.</td></tr>
+ *       Raw values from the hardware mosue driver are provided on Windows only; values on other OSes are emulated.</td></tr>
  *     <tr><td><code>MouseRawMoveUp</code></td><td>number</td><td>number</td><td>The mouse moved up, as reported by the
  *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than
  *       <code>MouseMoveUp</code>.<br />
- *       Windows-only; value is <code>undefined</code> on other OSes.</td></tr>
+ *       Raw values from the hardware mosue driver are provided on Windows only; values on other OSes are emulated.</td></tr>
  *     <tr><td><code>MouseRawMoveDown</code></td><td>number</td><td>number</td><td>The mouse moved down, as reported by the
  *       hardware mouse driver when Interface has focus. May be higher resolution and occur more often than
  *       <code>MouseMoveDown</code>.<br />
- *       Windows-only; value is <code>undefined</code> on other OSes.</td></tr>
+ *       Raw values from the hardware mosue driver are provided on Windows only; values on other OSes are emulated.</td></tr>
  *     <tr><td><code>MouseRawX</code></td><td>number</td><td>number</td><td>The raw mouse x-coordinate changed, when Interface
  *       has focus. The data value is its new raw x-coordinate value, unrelated to screen coordinates.<br />
  *       Windows-only; value is <code>undefined</code> on other OSes.</td></tr>
  *     <tr><td><code>MouseRawY</code></td><td>number</td><td>number</td><td>The raw mouse y-coordinate changed,  when Interface
  *       has focus. The data value is its new raw y-coordinate value, unrelated to screen coordinates.<br />
- *       Windows-only; value is <code>undefined</code> on other OSes.</td></tr>
+ *       Raw values from the hardware mosue driver are provided on Windows only; values on other OSes are emulated.</td></tr>
  *     <tr><td><code>MouseWheelRight</code></td><td>number</td><td>number</td><td>The mouse wheel rotated left. The data value
  *       is the number of units rotated (typically <code>1.0</code>).</td></tr>
  *     <tr><td><code>MouseWheelLeft</code></td><td>number</td><td>number</td><td>The mouse wheel rotated left. The data value 
