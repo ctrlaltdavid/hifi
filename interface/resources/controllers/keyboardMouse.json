@@ -121,7 +121,7 @@
           "to": "Actions.Yaw"
         },
         
-        { "from": { "makeAxis" : ["Keyboard.MouseMoveLeft", "Keyboard.MouseMoveRight"] },
+        { "from": { "makeAxis" : ["Keyboard.MouseRawMoveLeft", "Keyboard.MouseRawMoveRight"] },
           "when": "Keyboard.RightMouseButton",
           "to": "Actions.DeltaYaw",
           "filters":
@@ -130,7 +130,7 @@
             ]
         },
 
-        { "from": { "makeAxis" : ["Keyboard.MouseMoveUp", "Keyboard.MouseMoveDown"] },
+        { "from": { "makeAxis" : ["Keyboard.MouseRawMoveUp", "Keyboard.MouseRawMoveDown"] },
           "when": "Keyboard.RightMouseButton",
           "to": "Actions.DeltaPitch",
           "filters":
