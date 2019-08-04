@@ -628,7 +628,9 @@ bool adjustedFormatForAudioDevice(const QAudioDeviceInfo& audioDevice,
 #if defined(Q_OS_WIN)
     if (IsWindows8OrGreater()) {
         // On Windows using WASAPI shared-mode, returns the internal mix format
-        return nativeFormatForAudioDevice(audioDevice, adjustedAudioFormat);
+        if (nativeFormatForAudioDevice(audioDevice, adjustedAudioFormat)) {
+            return true;
+        }
     }   // else enumerate formats
 #endif
     
