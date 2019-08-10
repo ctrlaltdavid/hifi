@@ -52,7 +52,9 @@ public:
 
 signals:
     void inputDeviceRunningChanged(const QString& pluginName, bool isRunning, const QStringList& runningDevices);
-    
+    void inputDeviceCalibrated(const QString& deviceName, bool fromUI, bool success);
+    void inputDeviceUncalibrated(const QString& deviceName, bool fromUI);
+
 private:
     PluginManager() = default;
 

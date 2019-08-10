@@ -331,8 +331,9 @@ void ViveControllerManager::saveSettings() const {
 }
 
 
-ViveControllerManager::InputDevice::InputDevice(vr::IVRSystem*& system) :
+ViveControllerManager::InputDevice::InputDevice(ViveControllerManager& parent, vr::IVRSystem*& system) :
     controller::InputDevice("Vive"),
+    _parent(parent),
     _system(system) {
 
     _configStringMap[Config::None] = QString("None");
@@ -412,6 +413,8 @@ void ViveControllerManager::InputDevice::calibrateFromHandController(const contr
             _triggersPressedHandled = true;
             calibrateOrUncalibrate(inputCalibrationData);
         }
+
+        emit _parent.deviceCalibrated(_name, false, _calibrated);
     } else {
         _triggersPressedHandled = false;
         _timeTilCalibrationSet = false;
@@ -422,8 +425,15 @@ void ViveControllerManager::InputDevice::calibrateFromUI(const controller::Input
     if (_calibrate) {
         uncalibrate();
         calibrate(inputCalibrationData);
+
+        emit _parent.deviceCalibrated(_name, true, _calibrated);
+        if (!_calibrated) {
+            emit _parent.deviceUncalibrated(_name, true);
+        }
+
         emitCalibrationStatus();
         _calibrate = false;
+
     }
 }
 
@@ -600,6 +610,12 @@ void ViveControllerManager::InputDevice::sendUserActivityData(QString activity) 
 void ViveControllerManager::InputDevice::calibrateOrUncalibrate(const controller::InputCalibrationData& inputCalibration) {
     if (!_calibrated) {
         calibrate(inputCalibration);
+
+        emit _parent.deviceCalibrated(_name, false, _calibrated);
+        if (!_calibrated) {
+            emit _parent.deviceUncalibrated(_name, false);
+        }
+
         if (_calibrated) {
             sendUserActivityData("mocap_button_success");
         } else {
@@ -608,6 +624,9 @@ void ViveControllerManager::InputDevice::calibrateOrUncalibrate(const controller
         emitCalibrationStatus();
     } else {
         uncalibrate();
+
+        emit _parent.deviceUncalibrated(_name, false);
+
         sendUserActivityData("mocap_button_uncalibrate");
     }
 }

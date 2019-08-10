@@ -70,7 +70,7 @@ public:
 private:
     class InputDevice : public controller::InputDevice {
     public:
-        InputDevice(vr::IVRSystem*& system);
+        ViveControllerManager::InputDevice(ViveControllerManager& parent, vr::IVRSystem*& system);
         bool isHeadControllerMounted() const { return _overrideHead; }
 
     private:
@@ -209,6 +209,7 @@ private:
         std::map<uint32_t, uint64_t> _simDataRunningOkTimestampMap;
 
         QString configToString(Config config);
+        ViveControllerManager& _parent;
         friend class ViveControllerManager;
     };
 
@@ -227,7 +228,7 @@ private:
     int _rightHandRenderID { 0 };
 
     vr::IVRSystem* _system { nullptr };
-    std::shared_ptr<InputDevice> _inputDevice { std::make_shared<InputDevice>(_system) };
+    std::shared_ptr<ViveControllerManager::InputDevice> _inputDevice { std::make_shared<InputDevice>(*this, _system) };
 
     static const char* NAME;
 };

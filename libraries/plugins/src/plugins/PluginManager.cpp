@@ -283,6 +283,13 @@ const InputPluginList& PluginManager::getInputPlugins() {
             connect(plugin.get(), &Plugin::deviceStatusChanged, this, [&](const QString& deviceName, bool isRunning) {
                 emit inputDeviceRunningChanged(deviceName, isRunning, getRunningInputDeviceNames());
             }, Qt::QueuedConnection);
+            connect(plugin.get(), &InputPlugin::deviceCalibrated, this, [&](const QString& deviceName, bool fromUI,
+                bool success) {
+                emit inputDeviceCalibrated(deviceName, fromUI, success);
+            }, Qt::QueuedConnection);
+            connect(plugin.get(), &InputPlugin::deviceUncalibrated, this, [&](const QString& deviceName, bool fromUI) {
+                emit inputDeviceUncalibrated(deviceName, fromUI);
+            }, Qt::QueuedConnection);
             plugin->setContainer(_container);
             plugin->init();
         }

@@ -1123,6 +1123,10 @@ Application::Application(int& argc, char** argv, QElapsedTimer& startupTimer, bo
     _controllerScriptingInterface = dynamic_cast<ControllerScriptingInterface*>(controllerScriptingInterface);
     connect(PluginManager::getInstance().data(), &PluginManager::inputDeviceRunningChanged,
         controllerScriptingInterface, &controller::ScriptingInterface::updateRunningInputDevices);
+    connect(PluginManager::getInstance().data(), &PluginManager::inputDeviceCalibrated,
+        controllerScriptingInterface, &controller::ScriptingInterface::inputDeviceCalibrated);
+    connect(PluginManager::getInstance().data(), &PluginManager::inputDeviceUncalibrated,
+        controllerScriptingInterface, &controller::ScriptingInterface::inputDeviceUncalibrated);
 
     EntityTree::setEntityClicksCapturedOperator([this] {
         return _controllerScriptingInterface->areEntityClicksCaptured();

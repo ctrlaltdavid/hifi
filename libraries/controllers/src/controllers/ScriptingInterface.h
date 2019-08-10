@@ -619,6 +619,26 @@ namespace controller {
          */
         void inputDeviceRunningChanged(QString deviceName, bool isRunning);
 
+        /**jsdoc
+         * Triggered when an input device is calibrated.
+         * @function Controller.inputDeviceCalibrated
+         * @param {string} deviceName - The name of the device.
+         * @param {boolean} fromUI - <code>true</code> if the calibration was initiated from the UI, <code>false</code> if it
+         *     wasn't.
+         * @param {boolean} success - <code>true</code> if the calibration succeeded, <code>false</code> if it didn't.
+         * @returns {Signal}
+         */
+        void inputDeviceCalibrated(QString deviceName, bool fromUI, bool success);
+
+        /**jsdoc
+         * Triggered when an input device is uncalibrated.
+         * @function Controller.inputDeviceCalibrated
+         * @param {string} deviceName - The name of the device.
+         * @param {boolean} fromUI - <code>true</code> if the uncalibration was initiated from the UI, <code>false</code> if it
+         *     wasn't.
+         * @returns {Signal}
+         */
+        void inputDeviceUncalibrated(QString deviceName, bool fromUI);
 
     private:
         // Update the exposed variant maps reporting active hardware

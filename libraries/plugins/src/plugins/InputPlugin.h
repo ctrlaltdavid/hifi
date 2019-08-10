@@ -18,6 +18,8 @@ namespace controller {
 }
 
 class InputPlugin : public Plugin {
+    Q_OBJECT
+
 public:
     virtual void pluginFocusOutEvent() = 0;
     virtual void pluginUpdate(float deltaTime, const controller::InputCalibrationData& inputCalibrationData) = 0;
@@ -34,4 +36,8 @@ public:
     virtual bool configurable() { return false; }
     virtual bool isHandController() const { return false; }
     virtual bool isHeadController() const { return false; }
+
+signals:
+    void deviceCalibrated(const QString& deviceName, bool fromUI, bool success);
+    void deviceUncalibrated(const QString& deviceName, bool fromUI);
 };
