@@ -620,7 +620,8 @@ namespace controller {
         void inputDeviceRunningChanged(QString deviceName, bool isRunning);
 
         /**jsdoc
-         * Triggered when an input device is calibrated.
+         * Triggered when an input device is calibrated. If the calibration didn't succeed, the device is left in an 
+         * uncalibrated state.
          * @function Controller.inputDeviceCalibrated
          * @param {string} deviceName - The name of the device.
          * @param {boolean} fromUI - <code>true</code> if the calibration was initiated from the UI, <code>false</code> if it

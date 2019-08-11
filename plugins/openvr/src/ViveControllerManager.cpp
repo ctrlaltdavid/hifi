@@ -413,8 +413,6 @@ void ViveControllerManager::InputDevice::calibrateFromHandController(const contr
             _triggersPressedHandled = true;
             calibrateOrUncalibrate(inputCalibrationData);
         }
-
-        emit _parent.deviceCalibrated(_name, false, _calibrated);
     } else {
         _triggersPressedHandled = false;
         _timeTilCalibrationSet = false;
@@ -427,13 +425,9 @@ void ViveControllerManager::InputDevice::calibrateFromUI(const controller::Input
         calibrate(inputCalibrationData);
 
         emit _parent.deviceCalibrated(_name, true, _calibrated);
-        if (!_calibrated) {
-            emit _parent.deviceUncalibrated(_name, true);
-        }
 
         emitCalibrationStatus();
         _calibrate = false;
-
     }
 }
 
@@ -612,9 +606,6 @@ void ViveControllerManager::InputDevice::calibrateOrUncalibrate(const controller
         calibrate(inputCalibration);
 
         emit _parent.deviceCalibrated(_name, false, _calibrated);
-        if (!_calibrated) {
-            emit _parent.deviceUncalibrated(_name, false);
-        }
 
         if (_calibrated) {
             sendUserActivityData("mocap_button_success");
