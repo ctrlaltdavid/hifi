@@ -341,3 +341,101 @@ VIVE_CONTROLLER_CONFIGURATION_RIGHT = {
         }
     ]
 };
+
+(function () {
+
+    var DISPLAY_TIME = 2,  // How long the messages are displayed, in seconds.
+        CALIBRATION_SUCCESS = "Calibrated",
+        CALIBRATION_FAILURE = "Not Calibrated",
+        UNCALIBRATION = "Uncalibrated",
+
+        RED = { red: 255, green: 0, blue: 0 },
+        GREEN = { red: 0, green: 255, blue: 0 },
+
+        hmdOverlay = null,
+        HMD_FONT_SIZE = 0.08,
+        desktopOverlay = null,
+        DESKTOP_FONT_SIZE = 24,
+        displayTimer = null;
+
+    function show(text, color) {
+        var screenSize = Controller.getViewportDimensions();
+
+        if (HMD.active) {
+            hmdOverlay = Overlays.addOverlay("text3d", {
+                text: text,
+                lineHeight: HMD_FONT_SIZE,
+                dimensions: { x: 6 * HMD_FONT_SIZE, y: 1.02 * HMD_FONT_SIZE },
+                margin: 0,
+                parentID: MyAvatar.SELF_ID,
+                parentJointIndex: MyAvatar.getJointIndex("_CAMERA_MATRIX"),
+                position: Vec3.sum(Camera.position, Vec3.multiplyQbyV(Camera.orientation, { x: 1 * HMD_FONT_SIZE, y: 0, z: -2 })),
+                color: color,
+                alpha: 1,
+                backgroundAlpha: 0,
+                ignoreRayIntersection: true,
+                isFacingAvatar: true,
+                drawHUDLayer: true,
+                visible: true,
+                unlit: true
+            });
+        } else {
+            // 2D overlay on desktop.
+            desktopOverlay = Overlays.addOverlay("text", {
+                text: text,
+                width: 10 * DESKTOP_FONT_SIZE,
+                height: DESKTOP_FONT_SIZE,
+                x: screenSize.x / 2 - 5 * DESKTOP_FONT_SIZE,
+                y: screenSize.x / 2 - DESKTOP_FONT_SIZE,
+                font: { size: DESKTOP_FONT_SIZE },
+                color: color,
+                alpha: 1.0,
+                backgroundAlpha: 0,
+                visible: true
+            });
+        }
+    }
+
+    function hide() {
+        if (desktopOverlay) {
+            Overlays.deleteOverlay(desktopOverlay);
+            desktopOverlay = null;
+        }
+        if (hmdOverlay) {
+            Overlays.deleteOverlay(hmdOverlay);
+            hmdOverlay = null;
+        }
+        displayTimer = null;
+    }
+
+    Controller.inputDeviceCalibrated.connect(function (deviceName, fromUI, success) {
+        if (fromUI) {
+            return;
+        }
+
+        if (displayTimer) {
+            hide();
+        }
+
+        if (success) {
+            show(CALIBRATION_SUCCESS, GREEN);
+        } else {
+            show(CALIBRATION_FAILURE, RED);
+        }
+        displayTimer = Script.setTimeout(hide, DISPLAY_TIME * 1000);
+    });
+
+    Controller.inputDeviceUncalibrated.connect(function (deviceName, fromUI) {
+        if (fromUI) {
+            return;
+        }
+
+        if (displayTimer) {
+            hide();
+        }
+
+        show(UNCALIBRATION, RED);
+        displayTimer = Script.setTimeout(hide, DISPLAY_TIME * 1000);
+    });
+
+}());
